@@ -2,7 +2,10 @@ module main
 
 go 1.22.0
 
-require github.com/hajimehoshi/ebiten/v2 v2.6.5
+require (
+	github.com/hajimehoshi/ebiten/v2 v2.6.5
+	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3
+)
 
 require (
 	github.com/ebitengine/purego v0.5.0 // indirect
