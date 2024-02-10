@@ -38,7 +38,7 @@ func (assetloader *AssetLoader)LoadSpriteSheet(path string) error {
     return nil
 }
 
-func (assetloader *AssetLoader)LoadImage(name string, bounds img.Rectangle, count int) {
+func (assetloader *AssetLoader)LoadSprite(name string, bounds img.Rectangle, count int) {
     sizeX, sizeY := bounds.Max.X, bounds.Max.Y
     pos := Vec2[int]{x: bounds.Min.X, y: bounds.Min.Y} 
 

@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	//"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 
     img "image"
 )
@@ -13,10 +13,12 @@ const SpriteSheet = "assets/imgs/spritesheet.png"
 
 type Game struct{
     assetloader AssetLoader
-    message string
+    gamestate GameState
 }
 
 func (g *Game)Init() {
+    g.gamestate.Init()
+
     g.assetloader.Init()
 
     err := g.assetloader.LoadSpriteSheet(SpriteSheet)
@@ -25,21 +27,21 @@ func (g *Game)Init() {
         return
     }
 
-    g.assetloader.LoadImage("player", img.Rectangle{Min: img.Point{X: 0, Y: 36}, Max: img.Point{X: 11, Y: 8}}, 1)
+    g.assetloader.LoadSprite("player", img.Rectangle{Min: img.Point{X: 0, Y: 36}, Max: img.Point{X: 11, Y: 8}}, 1)
 
-    g.assetloader.LoadImage("enemy1", img.Rectangle{Min: img.Point{X: 0, Y: 0}, Max: img.Point{X: 8, Y: 8}}, 3)
-    g.assetloader.LoadImage("enemy2", img.Rectangle{Min: img.Point{X: 0, Y: 9}, Max: img.Point{X: 8, Y: 8}}, 3)
-    g.assetloader.LoadImage("enemy3", img.Rectangle{Min: img.Point{X: 0, Y: 18}, Max: img.Point{X: 18, Y: 8}}, 3)
-    g.assetloader.LoadImage("enemy4", img.Rectangle{Min: img.Point{X: 0, Y: 27}, Max: img.Point{X: 18, Y: 8}}, 3)
+    g.assetloader.LoadSprite("enemy1", img.Rectangle{Min: img.Point{X: 0, Y: 0}, Max: img.Point{X: 8, Y: 8}}, 3)
+    g.assetloader.LoadSprite("enemy2", img.Rectangle{Min: img.Point{X: 0, Y: 9}, Max: img.Point{X: 8, Y: 8}}, 3)
+    g.assetloader.LoadSprite("enemy3", img.Rectangle{Min: img.Point{X: 0, Y: 18}, Max: img.Point{X: 8, Y: 8}}, 3)
+    g.assetloader.LoadSprite("enemy4", img.Rectangle{Min: img.Point{X: 0, Y: 27}, Max: img.Point{X: 8, Y: 8}}, 3)
 }
 
 func (g *Game) HandleInputs() {
     if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
-        g.message = "left"
+        g.gamestate.MovePlayerLeft()
     }
 
     if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
-        g.message = "right"
+        g.gamestate.MovePlayerRight()
     }
 }
 
@@ -50,20 +52,23 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-    screen.Clear()
-	ebitenutil.DebugPrint(screen, g.message)
-    //player := g.assetloader.get("player", 0)
-    enemy1_1, err := g.assetloader.get("enemy2", 2)
-    if err != nil {
-        log.Fatal(err)
-        return
-    }
+    objects := g.gamestate.GetObjectsToDraw()
+    for _, entity := range objects {
+        entitySprite, err := g.assetloader.get(entity.getId(), entity.getCurrentFrame())
+        if err != nil {
+            log.Fatal(err)
+            return
+        }
 
-    screen.DrawImage(enemy1_1, &ebiten.DrawImageOptions{})
+        op := &ebiten.DrawImageOptions{}
+        op.GeoM.Translate(entity.getDrawPosition().x, entity.getPosition().y)
+
+        screen.DrawImage(entitySprite, op)
+    }
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 320, 240
+	return g.gamestate.bounds.x, g.gamestate.bounds.y
 }
 
 func main() {
