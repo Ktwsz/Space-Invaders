@@ -2,6 +2,7 @@ package main
 
 import (
     "time"
+    "fmt"
 )
 
 const playerSpeed float64 = 1.0
@@ -178,5 +179,25 @@ func (g *GameState)HandleCollisions() {
     if changeEnemiesDirection {
         g.enemySpeed *= -1
         g.EnemiesShiftDown()
+    }
+
+    tree := QTreeInitFromBounds(g.bounds)
+    tree.insert(&g.player)
+    for i := range g.enemies {
+        tree.insert(&g.enemies[i])
+    }
+    for i := range g.projectiles {
+        tree.insert(&g.projectiles[i])
+    }
+
+    collisions := tree.getAllIntersections()
+
+    for i := range collisions {
+        e := collisions[i].entities 
+        e1, e2 := e[0], e[1]
+
+        if ok := EntitiesCollide(e1, e2); ok {
+            fmt.Printf("collision between i%+v and %+v\n", e1, e2)
+        }
     }
 }

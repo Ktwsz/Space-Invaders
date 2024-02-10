@@ -38,10 +38,14 @@ func (e *Enemy)Init(id string, frameCount int, position Vec2[float64], rowNumber
 }
 
 func (e *Enemy)Move(speed float64) {
-    e.position.y += speed
+    e.position.x += speed
     e.frame = (e.frame + 1) % e.frameCount
 }
 
 func (e *Enemy)Shift(shift Vec2[float64]) {
     e.position = e.position.add(shift)
+}
+
+func (e Enemy)getHitbox() Vec2[float64] {
+    return e.hitbox
 }

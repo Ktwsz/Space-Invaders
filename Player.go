@@ -24,6 +24,10 @@ func (p Player)getSpriteSize() Vec2[float64] {
     return p.spriteSize
 }
 
+func (p Player)getHitbox() Vec2[float64] {
+    return p.hitbox
+}
+
 func (p *Player)Init(bounds Vec2[int]) {
     p.spriteSize = Vec2[float64]{x: 11.0, y: 8.0}
     p.hitbox = p.spriteSize

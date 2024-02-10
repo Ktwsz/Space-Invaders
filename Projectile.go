@@ -31,3 +31,7 @@ func (p *Projectile)Move() {
     p.position.y += p.speed
     p.frame = (p.frame + 1) % p.frameCount
 }
+
+func (p Projectile)getHitbox() Vec2[float64] {
+    return p.hitbox
+}
