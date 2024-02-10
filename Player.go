@@ -4,6 +4,8 @@ type Player struct {
     position Vec2[float64]
     hitbox Vec2[float64]
     spriteSize Vec2[float64]
+
+    shotOnCooldown bool
 }
 
 func (p Player)getId() string {
@@ -18,8 +20,8 @@ func (p Player)getPosition() Vec2[float64] {
     return p.position
 }
 
-func (p Player)getDrawPosition() Vec2[float64] {
-    return Vec2[float64]{x: p.position.x - p.spriteSize.x/2.0, y: p.position.y - p.spriteSize.y/2.0}
+func (p Player)getSpriteSize() Vec2[float64] {
+    return p.spriteSize
 }
 
 func (p *Player)Init(bounds Vec2[int]) {

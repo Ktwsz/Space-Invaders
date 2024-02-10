@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	//"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
     img "image"
 )
@@ -33,20 +33,32 @@ func (g *Game)Init() {
     g.assetloader.LoadSprite("enemy2", img.Rectangle{Min: img.Point{X: 0, Y: 9}, Max: img.Point{X: 8, Y: 8}}, 3)
     g.assetloader.LoadSprite("enemy3", img.Rectangle{Min: img.Point{X: 0, Y: 18}, Max: img.Point{X: 8, Y: 8}}, 3)
     g.assetloader.LoadSprite("enemy4", img.Rectangle{Min: img.Point{X: 0, Y: 27}, Max: img.Point{X: 8, Y: 8}}, 3)
+
+    g.assetloader.LoadSprite("player_projectile", img.Rectangle{Min: img.Point{X: 0, Y: 45}, Max: img.Point{X: 1, Y: 6}}, 1)
+
+    g.assetloader.LoadSprite("enemy_projectile_1", img.Rectangle{Min: img.Point{X: 0, Y: 52}, Max: img.Point{X: 3, Y: 7}}, 3)
+    g.assetloader.LoadSprite("enemy_projectile_2", img.Rectangle{Min: img.Point{X: 0, Y: 60}, Max: img.Point{X: 3, Y: 7}}, 3)
+    g.assetloader.LoadSprite("enemy_projectile_3", img.Rectangle{Min: img.Point{X: 0, Y: 67}, Max: img.Point{X: 3, Y: 7}}, 3)
 }
 
 func (g *Game) HandleInputs() {
     if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
-        g.gamestate.MovePlayerLeft()
+        g.gamestate.PlayerMoveLeft()
     }
 
     if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
-        g.gamestate.MovePlayerRight()
+        g.gamestate.PlayerMoveRight()
+    }
+
+    if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
+        g.gamestate.PlayerShoot()
     }
 }
 
 func (g *Game) Update() error {
     g.HandleInputs()
+    g.gamestate.MoveProjectiles()
+    g.gamestate.HandleCollisions()
 
     return nil
 }
@@ -61,14 +73,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
         }
 
         op := &ebiten.DrawImageOptions{}
-        op.GeoM.Translate(entity.getDrawPosition().x, entity.getPosition().y)
+        drawPosition := getDrawPosition(entity)
+        op.GeoM.Translate(drawPosition.x, drawPosition.y)
 
         screen.DrawImage(entitySprite, op)
     }
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return g.gamestate.bounds.x, g.gamestate.bounds.y
+    return 150, 120
 }
 
 func main() {
