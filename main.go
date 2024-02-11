@@ -29,12 +29,12 @@ func (g *Game)Init() {
 
     g.assetloader.LoadSprite("player", img.Rectangle{Min: img.Point{X: 0, Y: 36}, Max: img.Point{X: 11, Y: 8}}, 1)
 
-    g.assetloader.LoadSprite("enemy1", img.Rectangle{Min: img.Point{X: 0, Y: 0}, Max: img.Point{X: 8, Y: 8}}, 3)
-    g.assetloader.LoadSprite("enemy2", img.Rectangle{Min: img.Point{X: 0, Y: 9}, Max: img.Point{X: 8, Y: 8}}, 3)
-    g.assetloader.LoadSprite("enemy3", img.Rectangle{Min: img.Point{X: 0, Y: 18}, Max: img.Point{X: 8, Y: 8}}, 3)
-    g.assetloader.LoadSprite("enemy4", img.Rectangle{Min: img.Point{X: 0, Y: 27}, Max: img.Point{X: 8, Y: 8}}, 3)
+    g.assetloader.LoadSpriteWithDeath("enemy1", img.Rectangle{Min: img.Point{X: 0, Y: 0}, Max: img.Point{X: 8, Y: 8}}, 4, Vec2[int]{x: 8, y: 8})
+    g.assetloader.LoadSpriteWithDeath("enemy2", img.Rectangle{Min: img.Point{X: 0, Y: 9}, Max: img.Point{X: 8, Y: 8}}, 4, Vec2[int]{x: 8, y: 8})
+    g.assetloader.LoadSpriteWithDeath("enemy3", img.Rectangle{Min: img.Point{X: 0, Y: 18}, Max: img.Point{X: 8, Y: 8}}, 4, Vec2[int]{x: 8, y: 8})
+    g.assetloader.LoadSpriteWithDeath("enemy4", img.Rectangle{Min: img.Point{X: 0, Y: 27}, Max: img.Point{X: 8, Y: 8}}, 4, Vec2[int]{x: 8, y: 8})
 
-    g.assetloader.LoadSprite("player_projectile", img.Rectangle{Min: img.Point{X: 0, Y: 45}, Max: img.Point{X: 1, Y: 6}}, 1)
+    g.assetloader.LoadSpriteWithDeath("player_projectile", img.Rectangle{Min: img.Point{X: 0, Y: 45}, Max: img.Point{X: 1, Y: 6}}, 2, Vec2[int]{x: 6, y: 6})
 
     g.assetloader.LoadSprite("enemy_projectile_1", img.Rectangle{Min: img.Point{X: 0, Y: 52}, Max: img.Point{X: 3, Y: 7}}, 3)
     g.assetloader.LoadSprite("enemy_projectile_2", img.Rectangle{Min: img.Point{X: 0, Y: 60}, Max: img.Point{X: 3, Y: 7}}, 3)
@@ -56,6 +56,10 @@ func (g *Game) HandleInputs() {
 }
 
 func (g *Game) Update() error {
+    g.gamestate.removeDeadEnemies()
+    g.gamestate.RemoveDeadProjectiles()
+    g.gamestate.CheckForMissedProjectiles()
+    g.gamestate.CheckEnemiesInBounds()
     g.HandleInputs()
     g.gamestate.MoveProjectiles()
     g.gamestate.HandleCollisions()

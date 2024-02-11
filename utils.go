@@ -2,7 +2,21 @@ package main
 
 import (
     "golang.org/x/exp/constraints"
+    "sort"
 )
+
+const (
+    ENTITY_PLAYER = iota
+    ENTITY_ENEMY
+    ENTITY_PROJECTILE
+)
+
+const (
+    STATE_ALIVE = iota
+    STATE_DEATH_START
+    STATE_DEATH_END
+)
+
 
 type Vec2[T constraints.Float | constraints.Integer] struct {
     x, y T
@@ -34,6 +48,8 @@ type Entity interface {
     getPosition() Vec2[float64]
     getSpriteSize() Vec2[float64]
     getHitbox() Vec2[float64]
+    getEntityType() int
+    getGamestateIx() int
 }
 
 func EntitiesCollide(e1 Entity, e2 Entity) bool {
@@ -66,6 +82,12 @@ func RemoveIndex[T any](s []T, index int) []T {
 }
 
 func RemoveIndexesMany[T any](s []T, indexes []int) []T {
+    if indexes == nil {
+        return s
+    }
+
+    sort.Ints(indexes)
+
     for count, ix := range indexes {
         s = RemoveIndex(s, ix - count)
     }

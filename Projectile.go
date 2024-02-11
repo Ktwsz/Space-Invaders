@@ -9,6 +9,9 @@ type Projectile struct {
     hitbox Vec2[float64]
     spriteSize Vec2[float64]
     speed float64
+
+    deathState int
+    gamestateIx int
 }
 
 func (p Projectile)getId() string {
@@ -28,10 +31,26 @@ func (p Projectile)getSpriteSize() Vec2[float64] {
 }
 
 func (p *Projectile)Move() {
+    if p.deathState != STATE_ALIVE {
+        return 
+    }
     p.position.y += p.speed
     p.frame = (p.frame + 1) % p.frameCount
 }
 
 func (p Projectile)getHitbox() Vec2[float64] {
     return p.hitbox
+}
+
+func (p *Projectile)StartDying() {
+    p.deathState = STATE_DEATH_START
+    p.frame = p.frameCount
+}
+
+func (p Projectile)getEntityType() int {
+    return ENTITY_PROJECTILE
+}
+    
+func (p Projectile)getGamestateIx() int {
+    return p.gamestateIx
 }

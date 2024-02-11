@@ -3,6 +3,7 @@ package main
 import (
     "time"
     "sync"
+    "fmt"
 )
 
 const playerSpeed float64 = 1.0
@@ -85,10 +86,10 @@ func (g *GameState)PlayerMoveRight() {
 func (g *GameState)SpawnEnemiesRow(row int, enemyId string, count int) {
     position := Vec2[float64]{x: 6.0, y: (enemyHeight + 6.0) * float64(row) + 6.0}
 
-    enemiesNew := make([]*Enemy, count)
+    enemiesNew := make([]Enemy, count)
 
     for i := range count {
-        enemiesNew[i] = &Enemy{}
+        enemiesNew[i] = Enemy{}
         enemiesNew[i].Init(enemyId, 3, position, row)
 
         position.x += 10.0//enemy x + margin
@@ -149,7 +150,7 @@ func (g *GameState)SpawnPlayerProjectile() bool {
 
 
     g.mutex.Lock()
-    g.projectiles = append(g.projectiles, &projectile)
+    g.projectiles = append(g.projectiles, projectile)
     g.mutex.Unlock()
 
     return true
@@ -181,6 +182,10 @@ func (g *GameState)RemoveDeadProjectiles() {
         }
     }
 
+    if len(toRemove) > 0 {
+        fmt.Printf("%v+\n", toRemove)
+        fmt.Println(g.projectiles[0])
+    }
     g.projectiles = RemoveIndexesMany(g.projectiles, toRemove)
     g.mutex.Unlock()
 }
@@ -210,7 +215,7 @@ func (g *GameState)CheckForMissedProjectiles() {
         if IsOutOfBounds(g.bounds, p) {
             g.projectiles[i].StartDying()
 
-            go g.SetProjectileDeathTimer(g.projectiles[i], 500)
+            go g.SetProjectileDeathTimer(&g.projectiles[i], 500)
         }
     }
     g.mutex.Unlock()
@@ -271,14 +276,14 @@ func (g *GameState)HandleCollisions() {
     for i := range g.enemies {
         if g.enemies[i].deathState == STATE_ALIVE {
             g.enemies[i].gamestateIx = i
-            tree.insert(g.enemies[i])
+            tree.insert(&g.enemies[i])
         }
     }
 
     for i := range g.projectiles {
         if g.projectiles[i].deathState == STATE_ALIVE {
             g.projectiles[i].gamestateIx = i
-            tree.insert(g.projectiles[i])
+            tree.insert(&g.projectiles[i])
         }
     }
     g.mutex.Unlock()
@@ -303,14 +308,14 @@ func (g *GameState)KillEntity(e Entity) {
     case ENTITY_ENEMY:
         g.mutex.Lock()
         g.enemies[eIx].StartDying()
-        enemy := g.enemies[eIx]
+        enemy := &g.enemies[eIx]
         g.mutex.Unlock()
 
         go g.SetEnemyDeathTimer(enemy, 500)
     case ENTITY_PROJECTILE:
         g.mutex.Lock()
         g.projectiles[eIx].StartDying()
-        projectile := g.projectiles[eIx]
+        projectile := &g.projectiles[eIx]
         g.mutex.Unlock()
 
         go g.SetProjectileDeathTimer(projectile, 500)

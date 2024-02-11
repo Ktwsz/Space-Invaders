@@ -34,3 +34,10 @@ func (p *Player)Init(bounds Vec2[int]) {
     p.position = Vec2[float64]{x: float64(bounds.x)/2.0, y: float64(bounds.y) - p.spriteSize.y}
 }
 
+func (p Player)getEntityType() int {
+    return ENTITY_PLAYER
+}
+
+func (p Player)getGamestateIx() int {
+    return 0
+}

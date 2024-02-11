@@ -55,6 +55,19 @@ func (assetloader *AssetLoader)LoadSprite(name string, bounds img.Rectangle, cou
     assetloader.assets[name] = images
 }
 
+func (assetloader *AssetLoader)LoadSpriteWithDeath(name string, bounds img.Rectangle, count int, deathFrameBounds Vec2[int]) {
+    assetloader.LoadSprite(name, bounds, count-1)
+
+    sizeX := bounds.Max.X
+    posX := bounds.Min.X + (count-1) * (sizeX+1)
+    posY := bounds.Min.Y
+
+    imageRect := img.Rectangle{Min: img.Point{X: posX, Y: posY}, Max: img.Point{X: posX + deathFrameBounds.x, Y: posY + deathFrameBounds.y}}
+
+    subImage := assetloader.spritesheet.SubImage(imageRect)
+    assetloader.assets[name] = append(assetloader.assets[name], ebiten.NewImageFromImage(subImage))
+}
+
 func (assetloader *AssetLoader)get(name string, frame int) (*ebiten.Image, error) {
     imgs := assetloader.assets[name]
     if imgs == nil {
