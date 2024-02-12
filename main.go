@@ -36,9 +36,9 @@ func (g *Game)Init() {
 
     g.assetloader.LoadSpriteWithDeath("player_projectile", img.Rectangle{Min: img.Point{X: 0, Y: 45}, Max: img.Point{X: 1, Y: 6}}, 2, Vec2[int]{x: 6, y: 6})
 
-    g.assetloader.LoadSprite("enemy_projectile_1", img.Rectangle{Min: img.Point{X: 0, Y: 52}, Max: img.Point{X: 3, Y: 7}}, 3)
-    g.assetloader.LoadSprite("enemy_projectile_2", img.Rectangle{Min: img.Point{X: 0, Y: 60}, Max: img.Point{X: 3, Y: 7}}, 3)
-    g.assetloader.LoadSprite("enemy_projectile_3", img.Rectangle{Min: img.Point{X: 0, Y: 67}, Max: img.Point{X: 3, Y: 7}}, 3)
+    g.assetloader.LoadSprite("enemy_projectile_1", img.Rectangle{Min: img.Point{X: 0, Y: 52}, Max: img.Point{X: 3, Y: 7}}, 5)
+    g.assetloader.LoadSprite("enemy_projectile_2", img.Rectangle{Min: img.Point{X: 0, Y: 60}, Max: img.Point{X: 3, Y: 7}}, 5)
+    g.assetloader.LoadSprite("enemy_projectile_3", img.Rectangle{Min: img.Point{X: 0, Y: 67}, Max: img.Point{X: 3, Y: 7}}, 5)
 }
 
 func (g *Game) HandleInputs() {
@@ -60,8 +60,9 @@ func (g *Game) Update() error {
     g.gamestate.RemoveDeadProjectiles()
     g.gamestate.CheckForMissedProjectiles()
     g.gamestate.CheckEnemiesInBounds()
-    g.HandleInputs()
     g.gamestate.MoveProjectiles()
+    g.gamestate.EnemyShoot()
+    g.HandleInputs()
     g.gamestate.HandleCollisions()
 
     return nil

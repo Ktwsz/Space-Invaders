@@ -5,7 +5,7 @@ type Enemy struct {
     frame int
     frameCount int
 
-    rowNumber int
+    rowData Vec2[int]
     position Vec2[float64]
     hitbox Vec2[float64]
     spriteSize Vec2[float64]
@@ -30,11 +30,11 @@ func (e Enemy)getSpriteSize() Vec2[float64] {
     return e.spriteSize
 }
 
-func (e *Enemy)Init(id string, frameCount int, position Vec2[float64], rowNumber int) {
+func (e *Enemy)Init(id string, frameCount int, position Vec2[float64], rowData Vec2[int]) {
     e.id = id
     e.frameCount = frameCount
 
-    e.rowNumber = rowNumber
+    e.rowData = rowData
     e.position = position
     e.spriteSize = Vec2[float64]{x: 8.0, y: 8.0}
     e.hitbox = Vec2[float64]{x: 8.0, y: 8.0}

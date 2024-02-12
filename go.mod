@@ -3,6 +3,7 @@ module main
 go 1.22.0
 
 require (
+	github.com/chobie/go-gaussian v0.0.0-20150107165016-53c09d90eeaf
 	github.com/hajimehoshi/ebiten/v2 v2.6.5
 	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3
 )
