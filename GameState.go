@@ -11,8 +11,10 @@ import (
 const playerSpeed float64 = 1.0
 const enemyHeight float64 = 8.0
 const enemyCountColumn = 11
-const PlayerProjectileSpeed = -3.5
-const enemyProjectileSpeed = 3.5
+const playerProjectileSpeed = -3.5
+const playerProjectileCooldown = 750
+const enemyProjectileSpeed = 1.0
+const enemyProjectileCooldown = 1250
 
 type GameState struct {
     bounds Vec2[int]
@@ -39,7 +41,7 @@ func (g *GameState)Init() {
     g.SpawnEnemiesRow(1, "enemy2", enemyCountColumn)
     g.SpawnEnemiesRow(2, "enemy3", enemyCountColumn)
 
-    enemyMoveTicker := time.NewTicker(500 * time.Millisecond)
+    enemyMoveTicker := time.NewTicker(enemyProjectileCooldown * time.Millisecond)
     tickerDone := make(chan bool)
     go func() {
         for {
@@ -53,12 +55,13 @@ func (g *GameState)Init() {
     }()
 }
 
-func (g *GameState)GetLastEnemyInCol(column int) *Enemy {
+func (g *GameState)GetLastEnemyInCol() [enemyCountColumn]*Enemy {
+    result := [enemyCountColumn]*Enemy{}
     g.mutex.Lock()
-    var result *Enemy = nil
     for i, e := range g.enemies {
-        if e.rowData.x == column && (result == nil || e.rowData.y > result.rowData.y) {
-            result = g.enemies[i]
+        col := e.rowData.x
+        if result[col] == nil || e.rowData.y > result[col].rowData.y {
+            result[col] = g.enemies[i]
         }
     }
     g.mutex.Unlock()
@@ -67,17 +70,21 @@ func (g *GameState)GetLastEnemyInCol(column int) *Enemy {
 
 func (g *GameState)GetChanceToShoot(gaussian *gauss.Gaussian, enemy *Enemy) bool {
     dist := math.Abs(enemy.position.x - g.player.position.x)
-    chance := gaussian.Pdf(dist) * math.Sqrt(2 * math.Pi)
+    chance := 0.6 * gaussian.Pdf(dist) * math.Sqrt(2 * math.Pi)
     
     return rand.Float64() <= chance
 }
 
 func (g *GameState)EnemyShoot() {
     gaussDist := gauss.NewGaussian(0, 1)
+
+    enemiesLast := g.GetLastEnemyInCol()
+
     for col := range enemyCountColumn {
-        if enemyLast := g.GetLastEnemyInCol(col); enemyLast != nil {
-            if chance := g.GetChanceToShoot(gaussDist, enemyLast); chance {
-                didShoot := g.SpawnEnemyprojectile(enemyLast, col)
+        enemy := enemiesLast[col]
+        if enemy != nil && !g.enemyColProjectileCooldown[col] {
+            if chance := g.GetChanceToShoot(gaussDist, enemy); chance {
+                didShoot := g.SpawnEnemyprojectile(enemy, col)
 
                 if didShoot {
                     g.mutex.Lock()
@@ -104,7 +111,10 @@ func (g *GameState)SpawnEnemyprojectile(enemy *Enemy, col int) bool {
                              position: Vec2[float64]{x: enemy.position.x, y: enemy.position.y + enemy.spriteSize.y/2.0},
                              hitbox: Vec2[float64]{x: 3, y: 7},
                              spriteSize: Vec2[float64]{x: 3, y: 7},
-                             speed: enemyProjectileSpeed}
+                             speed: enemyProjectileSpeed,
+                             hitboxReceiveMask: HITBOX_PROJECTILE | HITBOX_PLAYER,
+                             hitboxSendMask: HITBOX_PROJECTILE | HITBOX_ENEMY,
+                         }
 
 
     g.mutex.Lock()
@@ -222,7 +232,10 @@ func (g *GameState)SpawnPlayerProjectile() bool {
                              position: Vec2[float64]{x: g.player.position.x, y: g.player.position.y - g.player.spriteSize.y/2.0},
                              hitbox: Vec2[float64]{x: 1, y: 6},
                              spriteSize: Vec2[float64]{x: 1, y: 6},
-                             speed: PlayerProjectileSpeed}
+                             speed: playerProjectileSpeed,
+                             hitboxReceiveMask: HITBOX_PROJECTILE | HITBOX_ENEMY,
+                             hitboxSendMask: HITBOX_PROJECTILE | HITBOX_PLAYER,
+                         }
 
 
     g.mutex.Lock()
@@ -366,9 +379,14 @@ func (g *GameState)HandleCollisions() {
         e := collisions[i].entities 
         e1, e2 := e[0], e[1]
 
-        if ok := EntitiesCollide(e1, e2); ok {
-            g.KillEntity(e1)
-            g.KillEntity(e2)
+        if HitboxCollide(e1, e2) {
+            if HitboxReceive(e2, e1) {
+                g.KillEntity(e1)
+            }
+
+            if HitboxReceive(e1, e2) {
+                g.KillEntity(e2)
+            }
         }
     }
 }

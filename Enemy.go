@@ -7,7 +7,11 @@ type Enemy struct {
 
     rowData Vec2[int]
     position Vec2[float64]
+
     hitbox Vec2[float64]
+    hitboxSendMask uint8
+    hitboxReceiveMask uint8
+
     spriteSize Vec2[float64]
 
     deathState int
@@ -33,6 +37,9 @@ func (e Enemy)getSpriteSize() Vec2[float64] {
 func (e *Enemy)Init(id string, frameCount int, position Vec2[float64], rowData Vec2[int]) {
     e.id = id
     e.frameCount = frameCount
+
+    e.hitboxReceiveMask = HITBOX_PLAYER
+    e.hitboxSendMask = HITBOX_ENEMY
 
     e.rowData = rowData
     e.position = position
@@ -70,4 +77,12 @@ func (e Enemy)getEntityType() int {
     
 func (e Enemy)getGamestateIx() int {
     return e.gamestateIx
+}
+
+func (e Enemy)getHitboxSendMask() uint8 {
+    return e.hitboxSendMask
+}
+
+func (e Enemy)getHiboxReceiveMask() uint8 {
+    return e.hitboxReceiveMask
 }

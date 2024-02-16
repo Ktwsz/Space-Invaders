@@ -6,7 +6,11 @@ type Projectile struct {
     frameCount int
 
     position Vec2[float64]
+
     hitbox Vec2[float64]
+    hitboxSendMask uint8
+    hitboxReceiveMask uint8
+
     spriteSize Vec2[float64]
     speed float64
 
@@ -53,4 +57,12 @@ func (p Projectile)getEntityType() int {
     
 func (p Projectile)getGamestateIx() int {
     return p.gamestateIx
+}
+
+func (p Projectile)getHitboxSendMask() uint8 {
+    return p.hitboxSendMask
+}
+
+func (p Projectile)getHiboxReceiveMask() uint8 {
+    return p.hitboxReceiveMask
 }

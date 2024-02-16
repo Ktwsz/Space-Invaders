@@ -17,6 +17,12 @@ const (
     STATE_DEATH_END
 )
 
+const (
+    HITBOX_PLAYER = 1 << iota
+    HITBOX_ENEMY
+    HITBOX_PROJECTILE
+)
+
 
 type Vec2[T constraints.Float | constraints.Integer] struct {
     x, y T
@@ -48,11 +54,13 @@ type Entity interface {
     getPosition() Vec2[float64]
     getSpriteSize() Vec2[float64]
     getHitbox() Vec2[float64]
+    getHitboxSendMask() uint8
+    getHiboxReceiveMask() uint8
     getEntityType() int
     getGamestateIx() int
 }
 
-func EntitiesCollide(e1 Entity, e2 Entity) bool {
+func HitboxCollide(e1 Entity, e2 Entity) bool {
     e1Pos, e2Pos := e1.getPosition(), e2.getPosition()
     e1Hitbox, e2Hitbox := e1.getHitbox().scale(0.5), e2.getHitbox().scale(0.5)
 
@@ -61,6 +69,13 @@ func EntitiesCollide(e1 Entity, e2 Entity) bool {
 
     return RectIntersects(e1Min, e1Max, e2Min, e2Max)
 } 
+
+func HitboxReceive(sender Entity, receiver Entity) bool {
+    sMask := sender.getHitboxSendMask()
+    rMask := receiver.getHiboxReceiveMask()
+
+    return sMask & rMask > 0
+}
 
 func getDrawPosition(e Entity) Vec2[float64] {
     pos := e.getPosition()
