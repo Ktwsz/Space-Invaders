@@ -6,6 +6,7 @@ import (
     gauss "github.com/chobie/go-gaussian"
     "math"
     rand "math/rand"
+    "fmt"
 )
 
 const playerSpeed float64 = 1.0
@@ -29,6 +30,8 @@ type GameState struct {
     projectiles []*Projectile
 
     mutex sync.Mutex
+
+    score int
 }
 
 func (g *GameState)Init() {
@@ -37,9 +40,9 @@ func (g *GameState)Init() {
 
     g.enemySpeed = 2.0
 
-    g.SpawnEnemiesRow(0, "enemy1", enemyCountColumn)
-    g.SpawnEnemiesRow(1, "enemy2", enemyCountColumn)
-    g.SpawnEnemiesRow(2, "enemy3", enemyCountColumn)
+    g.SpawnEnemiesRow(0, "enemy1", 10, enemyCountColumn)
+    g.SpawnEnemiesRow(1, "enemy2", 20, enemyCountColumn)
+    g.SpawnEnemiesRow(2, "enemy3", 50, enemyCountColumn)
 
     enemyMoveTicker := time.NewTicker(enemyProjectileCooldown * time.Millisecond)
     tickerDone := make(chan bool)
@@ -159,14 +162,14 @@ func (g *GameState)PlayerMoveRight() {
     }
 }
 
-func (g *GameState)SpawnEnemiesRow(row int, enemyId string, count int) {
+func (g *GameState)SpawnEnemiesRow(row int, enemyId string, enemyPoints int, count int) {
     position := Vec2[float64]{x: 6.0, y: (enemyHeight + 6.0) * float64(row) + 6.0}
 
     enemiesNew := make([]*Enemy, count)
 
     for i := range count {
         enemiesNew[i] = &Enemy{}
-        enemiesNew[i].Init(enemyId, 3, position, Vec2[int]{x: i, y: row})
+        enemiesNew[i].Init(enemyId, 3, position, Vec2[int]{x: i, y: row}, enemyPoints)
 
         position.x += 10.0//enemy x + margin
     }
@@ -381,23 +384,24 @@ func (g *GameState)HandleCollisions() {
 
         if HitboxCollide(e1, e2) {
             if HitboxReceive(e2, e1) {
-                g.KillEntity(e1)
+                g.HitEntity(e1)
             }
 
             if HitboxReceive(e1, e2) {
-                g.KillEntity(e2)
+                g.HitEntity(e2)
             }
         }
     }
 }
 
-func (g *GameState)KillEntity(e Entity) {
+func (g *GameState)HitEntity(e Entity) {
     eIx := e.getGamestateIx()
 
     switch e.getEntityType() {
     case ENTITY_ENEMY:
         g.mutex.Lock()
         g.enemies[eIx].StartDying()
+        g.score += g.enemies[eIx].points
         enemy := g.enemies[eIx]
         g.mutex.Unlock()
 
@@ -409,5 +413,17 @@ func (g *GameState)KillEntity(e Entity) {
         g.mutex.Unlock()
 
         go g.SetProjectileDeathTimer(projectile, 500)
+    case ENTITY_PLAYER:
+        g.player.Hit()
     }
 }
+
+func (g *GameState)GetPlayerLivesStr() string {
+    return fmt.Sprintf("lives %d", g.player.lives)
+}
+
+func (g *GameState)GetScoreStr() string {
+    return fmt.Sprintf("score %d", g.score)
+}
+//TODO: fix mutex
+//TODO: player gets hit twice - quadtree bug if player belongs to two nodes

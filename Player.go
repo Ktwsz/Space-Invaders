@@ -1,6 +1,8 @@
 package main
 
 type Player struct {
+    lives int
+
     position Vec2[float64]
 
     hitbox Vec2[float64]
@@ -33,6 +35,8 @@ func (p Player)getHitbox() Vec2[float64] {
 }
 
 func (p *Player)Init(bounds Vec2[int]) {
+    p.lives = 3
+
     p.spriteSize = Vec2[float64]{x: 11.0, y: 8.0}
     p.hitbox = p.spriteSize
     p.position = Vec2[float64]{x: float64(bounds.x)/2.0, y: float64(bounds.y) - p.spriteSize.y}
@@ -55,4 +59,8 @@ func (p Player)getHitboxSendMask() uint8 {
 
 func (p Player)getHiboxReceiveMask() uint8 {
     return p.hitboxReceiveMask
+}
+
+func (p *Player)Hit() {
+    p.lives -= 1
 }

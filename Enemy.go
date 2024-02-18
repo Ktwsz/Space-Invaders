@@ -16,6 +16,8 @@ type Enemy struct {
 
     deathState int
     gamestateIx int
+
+    points int
 }
 
 func (e Enemy)getId() string {
@@ -34,7 +36,7 @@ func (e Enemy)getSpriteSize() Vec2[float64] {
     return e.spriteSize
 }
 
-func (e *Enemy)Init(id string, frameCount int, position Vec2[float64], rowData Vec2[int]) {
+func (e *Enemy)Init(id string, frameCount int, position Vec2[float64], rowData Vec2[int], points int) {
     e.id = id
     e.frameCount = frameCount
 
@@ -45,6 +47,8 @@ func (e *Enemy)Init(id string, frameCount int, position Vec2[float64], rowData V
     e.position = position
     e.spriteSize = Vec2[float64]{x: 8.0, y: 8.0}
     e.hitbox = Vec2[float64]{x: 8.0, y: 8.0}
+
+    e.points = points
 }
 
 func (e *Enemy)Move(speed float64) {

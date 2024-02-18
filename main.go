@@ -3,13 +3,21 @@ package main
 import (
 	"log"
 
+    //"image/color"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+    "github.com/hajimehoshi/bitmapfont/v3"
+    "github.com/hajimehoshi/ebiten/v2/text"
 
     img "image"
 )
 
 const SpriteSheet = "assets/imgs/spritesheet.png"
+const GAME_WIDTH = 150
+const GAME_HEIGHT = 120
+const H_MARGIN = 25
+const V_MARGIN = 10
 
 type Game struct{
     assetloader AssetLoader
@@ -79,14 +87,34 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
         op := &ebiten.DrawImageOptions{}
         drawPosition := getDrawPosition(entity)
-        op.GeoM.Translate(drawPosition.x, drawPosition.y)
+        op.GeoM.Translate(drawPosition.x + H_MARGIN, drawPosition.y)
 
         screen.DrawImage(entitySprite, op)
     }
+
+    g.DrawUI(screen)
+}
+
+func (g *Game)DrawUI(screen *ebiten.Image) {
+    livesStr := g.gamestate.GetPlayerLivesStr()
+    DrawTextImage(screen, livesStr, 0, GAME_HEIGHT + 20, 1, 0.9)
+
+
+    scoreStr := g.gamestate.GetScoreStr()
+    DrawTextImage(screen, scoreStr, 100, GAME_HEIGHT + 20, 1, 0.9)
+}
+
+func DrawTextImage(screen *ebiten.Image, str string, posX, posY, scaleX, scaleY float64) {
+    imgOp := &ebiten.DrawImageOptions{}
+
+    imgOp.GeoM.Scale(scaleX, scaleY)
+    imgOp.GeoM.Translate(posX, posY)
+
+    text.DrawWithOptions(screen, str, bitmapfont.Face, imgOp)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-    return 150, 120
+    return GAME_WIDTH + 2 * H_MARGIN, GAME_HEIGHT + 2 * V_MARGIN
 }
 
 func main() {
@@ -98,3 +126,4 @@ func main() {
 		log.Fatal(err)
 	}
 }
+//TODO: proper UI
