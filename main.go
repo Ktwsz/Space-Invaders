@@ -3,8 +3,6 @@ package main
 import (
 	"log"
 
-    //"image/color"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
     "github.com/hajimehoshi/bitmapfont/v3"
@@ -126,4 +124,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-//TODO: proper UI

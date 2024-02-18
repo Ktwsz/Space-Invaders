@@ -2,7 +2,6 @@ package main
 
 import (
     "time"
-    "sync"
     gauss "github.com/chobie/go-gaussian"
     "math"
     rand "math/rand"
@@ -29,8 +28,6 @@ type GameState struct {
 
     projectiles []*Projectile
 
-    mutex sync.Mutex
-
     score int
 }
 
@@ -40,9 +37,9 @@ func (g *GameState)Init() {
 
     g.enemySpeed = 2.0
 
-    g.SpawnEnemiesRow(0, "enemy1", 10, enemyCountColumn)
+    g.SpawnEnemiesRow(0, "enemy1", 50, enemyCountColumn)
     g.SpawnEnemiesRow(1, "enemy2", 20, enemyCountColumn)
-    g.SpawnEnemiesRow(2, "enemy3", 50, enemyCountColumn)
+    g.SpawnEnemiesRow(2, "enemy3", 10, enemyCountColumn)
 
     enemyMoveTicker := time.NewTicker(enemyProjectileCooldown * time.Millisecond)
     tickerDone := make(chan bool)
@@ -60,14 +57,12 @@ func (g *GameState)Init() {
 
 func (g *GameState)GetLastEnemyInCol() [enemyCountColumn]*Enemy {
     result := [enemyCountColumn]*Enemy{}
-    g.mutex.Lock()
     for i, e := range g.enemies {
         col := e.rowData.x
         if result[col] == nil || e.rowData.y > result[col].rowData.y {
             result[col] = g.enemies[i]
         }
     }
-    g.mutex.Unlock()
     return result
 }
 
@@ -90,9 +85,7 @@ func (g *GameState)EnemyShoot() {
                 didShoot := g.SpawnEnemyprojectile(enemy, col)
 
                 if didShoot {
-                    g.mutex.Lock()
                     g.enemyColProjectileCooldown[col] = true
-                    g.mutex.Unlock()
 
                     go g.SetEnemyCooldownTimer(col, 750)
                 }
@@ -102,9 +95,7 @@ func (g *GameState)EnemyShoot() {
 }
 
 func (g *GameState)SpawnEnemyprojectile(enemy *Enemy, col int) bool {
-    g.mutex.Lock()
     shotOnCooldown := g.enemyColProjectileCooldown[col]
-    g.mutex.Unlock()
 
     if shotOnCooldown {
         return false
@@ -120,9 +111,7 @@ func (g *GameState)SpawnEnemyprojectile(enemy *Enemy, col int) bool {
                          }
 
 
-    g.mutex.Lock()
     g.projectiles = append(g.projectiles, &projectile)
-    g.mutex.Unlock()
 
     return true
 }
@@ -133,7 +122,6 @@ func (g *GameState)GetObjectsToDraw() []Entity{
 
     objects := make([]Entity, projectilesLen + enemiesLen + 1)
 
-    g.mutex.Lock()
     objects[0] = &g.player
 
     for i := range g.enemies {
@@ -143,7 +131,6 @@ func (g *GameState)GetObjectsToDraw() []Entity{
     for i := range g.projectiles {
         objects[enemiesLen+i+1] = g.projectiles[i]
     }
-    g.mutex.Unlock()
 
     return objects
 }
@@ -174,14 +161,11 @@ func (g *GameState)SpawnEnemiesRow(row int, enemyId string, enemyPoints int, cou
         position.x += 10.0//enemy x + margin
     }
 
-    g.mutex.Lock()
     g.enemies = append(g.enemies, enemiesNew...)
-    g.mutex.Unlock()
 }
 
 func (g *GameState)removeDeadEnemies() {
     toRemove := make([]int, 0)
-    g.mutex.Lock()
     for i, e := range g.enemies {
         if e.deathState == STATE_DEATH_END {
             toRemove = append(toRemove, i)
@@ -189,7 +173,6 @@ func (g *GameState)removeDeadEnemies() {
     }
 
     g.enemies = RemoveIndexesMany(g.enemies, toRemove)
-    g.mutex.Unlock()
 }
 
 func (g *GameState)SetCooldownTimer(t time.Duration) {
@@ -197,9 +180,7 @@ func (g *GameState)SetCooldownTimer(t time.Duration) {
 
     <-timer.C
 
-    g.mutex.Lock()
     g.player.shotOnCooldown = false
-    g.mutex.Unlock()
 }
 
 func (g *GameState)SetEnemyCooldownTimer(column int, t time.Duration) {
@@ -207,25 +188,19 @@ func (g *GameState)SetEnemyCooldownTimer(column int, t time.Duration) {
 
     <-timer.C
 
-    g.mutex.Lock()
     g.enemyColProjectileCooldown[column] = false
-    g.mutex.Unlock()
 }
 
 func (g *GameState)PlayerShoot() {
     if ok := g.SpawnPlayerProjectile(); ok {
-        g.mutex.Lock()
         g.player.shotOnCooldown = true
-        g.mutex.Unlock()
 
         go g.SetCooldownTimer(750)
     }
 }
 
 func (g *GameState)SpawnPlayerProjectile() bool {
-    g.mutex.Lock()
     shotOnCooldown := g.player.shotOnCooldown
-    g.mutex.Unlock()
 
     if shotOnCooldown {
         return false
@@ -241,33 +216,26 @@ func (g *GameState)SpawnPlayerProjectile() bool {
                          }
 
 
-    g.mutex.Lock()
     g.projectiles = append(g.projectiles, &projectile)
-    g.mutex.Unlock()
 
     return true
 }
 
 func (g *GameState)MoveEnemies() {
-    g.mutex.Lock()
     for i := range g.enemies {
         g.enemies[i].Move(g.enemySpeed)
     }
-    g.mutex.Unlock()
 }
 
 func (g *GameState)MoveProjectiles() {
-    g.mutex.Lock()
     for i := range g.projectiles {
         g.projectiles[i].Move()
     }
-    g.mutex.Unlock()
 }
 
 
 func (g *GameState)RemoveDeadProjectiles() {
     toRemove := make([]int, 0)
-    g.mutex.Lock()
     for i, p := range g.projectiles {
         if p.deathState == STATE_DEATH_END {
             toRemove = append(toRemove, i)
@@ -275,7 +243,6 @@ func (g *GameState)RemoveDeadProjectiles() {
     }
 
     g.projectiles = RemoveIndexesMany(g.projectiles, toRemove)
-    g.mutex.Unlock()
 }
 
 func (g *GameState)SetEnemyDeathTimer(enemy *Enemy, t time.Duration) {
@@ -283,36 +250,22 @@ func (g *GameState)SetEnemyDeathTimer(enemy *Enemy, t time.Duration) {
 
     <-timer.C
 
-    g.mutex.Lock()
     enemy.deathState = STATE_DEATH_END
-    g.mutex.Unlock()
 }
 
 func (g *GameState)SetProjectileDeathTimer(projectile *Projectile, t time.Duration) {
     timer := time.NewTimer(t * time.Millisecond)
 
     <-timer.C
-    g.mutex.Lock()
     projectile.deathState = STATE_DEATH_END
-    g.mutex.Unlock()
 }
 
 func (g *GameState)CheckForMissedProjectiles() {
-    g.mutex.Lock()
-    for i, p := range g.projectiles {
-        if IsOutOfBounds(g.bounds, p) {
-            g.projectiles[i].StartDying()
-
-            go g.SetProjectileDeathTimer(g.projectiles[i], 500)
-        }
-    }
-    g.mutex.Unlock()
 }
 
 func (g *GameState)EnemiesShiftRow(row int, enemyIx int) {
     var shiftX float64
 
-    g.mutex.Lock()
     e := g.enemies[enemyIx]
     if e.position.x + e.spriteSize.x > float64(g.bounds.x) {
         shiftX = -(e.position.x + e.spriteSize.x - float64(g.bounds.x))
@@ -325,27 +278,21 @@ func (g *GameState)EnemiesShiftRow(row int, enemyIx int) {
             g.enemies[i].Shift(Vec2[float64]{x: shiftX, y: 0})
         }
     }
-    g.mutex.Unlock()
 }
 
 func (g *GameState)EnemiesShiftDown() {
-    g.mutex.Lock()
     for i := range g.enemies {
         g.enemies[i].Shift(Vec2[float64]{x: 0, y: enemyHeight + 6.0})        
     }
-    g.mutex.Unlock()
 }
 
 func (g *GameState)CheckEnemiesInBounds() {
     changeEnemiesDirection := false
     for i, e := range g.enemies {
-        g.mutex.Lock()
         if IsOutOfBounds(g.bounds, e) {
             changeEnemiesDirection = true
-            g.mutex.Unlock()
             g.EnemiesShiftRow(e.rowData.y, i)
         } else {
-            g.mutex.Unlock()
         }
     }
 
@@ -356,14 +303,16 @@ func (g *GameState)CheckEnemiesInBounds() {
 }
 
 func (g *GameState)HandleCollisions() {
-    g.mutex.Lock()
 
     tree := QTreeInitFromBounds(g.bounds)
+
+    g.player.collideMap = make(map[Entity]bool)
     tree.insert(&g.player)
 
     for i := range g.enemies {
         if g.enemies[i].deathState == STATE_ALIVE {
             g.enemies[i].gamestateIx = i
+            g.enemies[i].collideMap = make(map[Entity]bool)
             tree.insert(g.enemies[i])
         }
     }
@@ -371,10 +320,10 @@ func (g *GameState)HandleCollisions() {
     for i := range g.projectiles {
         if g.projectiles[i].deathState == STATE_ALIVE {
             g.projectiles[i].gamestateIx = i
+            g.projectiles[i].collideMap = make(map[Entity]bool)
             tree.insert(g.projectiles[i])
         }
     }
-    g.mutex.Unlock()
 
     collisions := tree.getAllIntersections()
 
@@ -384,37 +333,41 @@ func (g *GameState)HandleCollisions() {
 
         if HitboxCollide(e1, e2) {
             if HitboxReceive(e2, e1) {
-                g.HitEntity(e1)
+                g.HitEntity(e1, e2)
             }
 
             if HitboxReceive(e1, e2) {
-                g.HitEntity(e2)
+                g.HitEntity(e2, e1)
             }
         }
     }
 }
 
-func (g *GameState)HitEntity(e Entity) {
+func (g *GameState)HitEntity(e Entity, sender Entity) {
+    if e.didCollideWith(sender) {
+        return
+    }
     eIx := e.getGamestateIx()
 
     switch e.getEntityType() {
     case ENTITY_ENEMY:
-        g.mutex.Lock()
         g.enemies[eIx].StartDying()
         g.score += g.enemies[eIx].points
+        g.enemies[eIx].collideMap[sender] = true
+
         enemy := g.enemies[eIx]
-        g.mutex.Unlock()
 
         go g.SetEnemyDeathTimer(enemy, 500)
     case ENTITY_PROJECTILE:
-        g.mutex.Lock()
         g.projectiles[eIx].StartDying()
+        g.projectiles[eIx].collideMap[sender] = true
+
         projectile := g.projectiles[eIx]
-        g.mutex.Unlock()
 
         go g.SetProjectileDeathTimer(projectile, 500)
     case ENTITY_PLAYER:
         g.player.Hit()
+        g.player.collideMap[sender] = true
     }
 }
 
@@ -425,5 +378,3 @@ func (g *GameState)GetPlayerLivesStr() string {
 func (g *GameState)GetScoreStr() string {
     return fmt.Sprintf("score %d", g.score)
 }
-//TODO: fix mutex
-//TODO: player gets hit twice - quadtree bug if player belongs to two nodes

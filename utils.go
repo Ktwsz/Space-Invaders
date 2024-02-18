@@ -58,6 +58,7 @@ type Entity interface {
     getHiboxReceiveMask() uint8
     getEntityType() int
     getGamestateIx() int
+    didCollideWith(e Entity) bool
 }
 
 func HitboxCollide(e1 Entity, e2 Entity) bool {
