@@ -62,14 +62,11 @@ func (g *Game) HandleInputs() {
 }
 
 func (g *Game) Update() error {
-    g.gamestate.removeDeadEnemies()
-    g.gamestate.RemoveDeadProjectiles()
-    g.gamestate.CheckForMissedProjectiles()
-    g.gamestate.CheckEnemiesInBounds()
-    g.gamestate.MoveProjectiles()
-    g.gamestate.EnemyShoot()
-    g.HandleInputs()
-    g.gamestate.HandleCollisions()
+    if g.gamestate.IsGameRunning() {
+        g.HandleInputs()
+    }
+
+    g.gamestate.GameLoop()
 
     return nil
 }
@@ -94,12 +91,31 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game)DrawUI(screen *ebiten.Image) {
+    switch g.gamestate.pauseState {
+    case GAME_RUNNING:
+        g.DrawUIRunning(screen)
+    case GAME_OVER:
+        g.DrawUIOver(screen)
+    case GAME_WIN:
+        g.DrawUIWin(screen)
+    }
+}
+
+func (g *Game)DrawUIRunning(screen *ebiten.Image) {
     livesStr := g.gamestate.GetPlayerLivesStr()
     DrawTextImage(screen, livesStr, 0, GAME_HEIGHT + 20, 1, 0.9)
 
 
     scoreStr := g.gamestate.GetScoreStr()
     DrawTextImage(screen, scoreStr, 100, GAME_HEIGHT + 20, 1, 0.9)
+}
+
+func (g *Game)DrawUIOver(screen *ebiten.Image) {
+
+}
+
+func (g *Game)DrawUIWin(screen *ebiten.Image) {
+
 }
 
 func DrawTextImage(screen *ebiten.Image, str string, posX, posY, scaleX, scaleY float64) {

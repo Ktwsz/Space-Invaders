@@ -29,10 +29,14 @@ type GameState struct {
     projectiles []*Projectile
 
     score int
+    pauseState int
+
+    enemyMoveDone chan bool
 }
 
 func (g *GameState)Init() {
     g.bounds = Vec2[int]{x: 130, y: 120}
+    g.pauseState = GAME_RUNNING//TODO: remove later
     g.player.Init(g.bounds)
 
     g.enemySpeed = 2.0
@@ -42,17 +46,43 @@ func (g *GameState)Init() {
     g.SpawnEnemiesRow(2, "enemy3", 10, enemyCountColumn)
 
     enemyMoveTicker := time.NewTicker(enemyProjectileCooldown * time.Millisecond)
-    tickerDone := make(chan bool)
+    g.enemyMoveDone = make(chan bool)
     go func() {
         for {
             select{
-                case <-tickerDone:
+                case <-g.enemyMoveDone:
                     return
                 case <-enemyMoveTicker.C:
                     g.MoveEnemies()
             }
         }
     }()
+}
+
+func (g *GameState)GameLoop() {
+    if g.pauseState != GAME_RUNNING {
+        return
+    }
+
+    g.removeDeadEnemies()
+    g.RemoveDeadProjectiles()
+    g.CheckForMissedProjectiles()
+    g.CheckEnemiesInBounds()
+    g.MoveProjectiles()
+    g.EnemyShoot()
+    g.HandleCollisions()
+    g.HandleIfWon()
+}
+
+func (g *GameState)IsGameRunning() bool {
+    return g.pauseState == GAME_RUNNING
+}
+
+func (g *GameState)HandleIfWon() {
+    if len(g.enemies) == 0 {
+        g.pauseState = GAME_WIN
+        g.enemyMoveDone <- true
+    }
 }
 
 func (g *GameState)GetLastEnemyInCol() [enemyCountColumn]*Enemy {
@@ -73,6 +103,10 @@ func (g *GameState)GetChanceToShoot(gaussian *gauss.Gaussian, enemy *Enemy) bool
     return rand.Float64() <= chance
 }
 
+func (g *GameState)CanEnemyShoot(enemy *Enemy, col int) bool {
+    return enemy != nil && enemy.deathState == STATE_ALIVE && !g.enemyColProjectileCooldown[col] 
+}
+
 func (g *GameState)EnemyShoot() {
     gaussDist := gauss.NewGaussian(0, 1)
 
@@ -80,7 +114,7 @@ func (g *GameState)EnemyShoot() {
 
     for col := range enemyCountColumn {
         enemy := enemiesLast[col]
-        if enemy != nil && !g.enemyColProjectileCooldown[col] {
+        if g.CanEnemyShoot(enemy, col) {
             if chance := g.GetChanceToShoot(gaussDist, enemy); chance {
                 didShoot := g.SpawnEnemyprojectile(enemy, col)
 
@@ -367,6 +401,10 @@ func (g *GameState)HitEntity(e Entity, sender Entity) {
         go g.SetProjectileDeathTimer(projectile, 500)
     case ENTITY_PLAYER:
         g.player.Hit()
+        if g.player.lives <= 0 {
+            g.pauseState = GAME_OVER
+            g.enemyMoveDone <- true
+        }
         g.player.collideMap[sender] = true
     }
 }

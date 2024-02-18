@@ -23,6 +23,13 @@ const (
     HITBOX_PROJECTILE
 )
 
+const (
+    GAME_STARTING = iota
+    GAME_RUNNING
+    GAME_OVER
+    GAME_WIN
+)
+
 
 type Vec2[T constraints.Float | constraints.Integer] struct {
     x, y T
