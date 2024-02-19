@@ -82,7 +82,6 @@ func (g *GameState)GameLoop() {
 
     g.removeDeadEnemies()
     g.RemoveDeadProjectiles()
-    g.CheckForMissedProjectiles()
     g.CheckEnemiesInBounds()
     g.MoveProjectiles()
     g.EnemyShoot()
@@ -350,9 +349,6 @@ func (g *GameState)SetProjectileDeathTimer(projectile *Projectile, t time.Durati
     projectile.deathState = STATE_DEATH_END
 }
 
-func (g *GameState)CheckForMissedProjectiles() {
-}
-
 func (g *GameState)EnemiesShiftRow(row int, enemyIx int) {
     var shiftX float64
 
@@ -371,6 +367,12 @@ func (g *GameState)EnemiesShiftRow(row int, enemyIx int) {
 }
 
 func (g *GameState)EnemiesShiftDown() {
+    for _, e := range g.enemies {
+        if e.position.y > 70 {
+            return
+        } 
+    }
+
     for i := range g.enemies {
         g.enemies[i].Shift(Vec2[float64]{x: 0, y: enemyHeight + 6.0})        
     }
@@ -382,8 +384,7 @@ func (g *GameState)CheckEnemiesInBounds() {
         if IsOutOfBounds(g.bounds, e) {
             changeEnemiesDirection = true
             g.EnemiesShiftRow(e.rowData.y, i)
-        } else {
-        }
+        } 
     }
 
     if changeEnemiesDirection {
