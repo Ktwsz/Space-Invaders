@@ -2,6 +2,8 @@ package main
 
 type Enemy struct {
     id string
+    projectileId string
+
     frame int
     frameCount int
 
@@ -38,8 +40,10 @@ func (e Enemy)getSpriteSize() Vec2[float64] {
     return e.spriteSize
 }
 
-func (e *Enemy)Init(id string, frameCount int, position Vec2[float64], rowData Vec2[int], points int) {
+func (e *Enemy)Init(id string, projectileId string, frameCount int, position Vec2[float64], rowData Vec2[int], points int) {
     e.id = id
+    e.projectileId = projectileId
+
     e.frameCount = frameCount
 
     e.hitboxReceiveMask = HITBOX_PLAYER

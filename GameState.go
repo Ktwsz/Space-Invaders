@@ -47,9 +47,9 @@ func (g *GameState)Init() {
 
     g.enemySpeed = 2.0
 
-    g.SpawnEnemiesRow(0, "enemy1", 50, enemyCountColumn)
-    g.SpawnEnemiesRow(1, "enemy2", 20, enemyCountColumn)
-    g.SpawnEnemiesRow(2, "enemy3", 10, enemyCountColumn)
+    g.SpawnEnemiesRow(0, 3, 50, enemyCountColumn)
+    g.SpawnEnemiesRow(1, 2, 20, enemyCountColumn)
+    g.SpawnEnemiesRow(2, 1, 10, enemyCountColumn)
 
     g.SpawnWalls()
 
@@ -167,7 +167,7 @@ func (g *GameState)SpawnEnemyprojectile(enemy *Enemy, col int) bool {
     if shotOnCooldown {
         return false
     }
-    projectile := Projectile{id: "enemy_projectile_1", 
+    projectile := Projectile{id: enemy.projectileId, 
                              frameCount: 4,
                              position: Vec2[float64]{x: enemy.position.x, y: enemy.position.y + enemy.spriteSize.y/2.0},
                              hitbox: Vec2[float64]{x: 3, y: 7},
@@ -216,14 +216,17 @@ func (g *GameState)PlayerMoveRight() {
     }
 }
 
-func (g *GameState)SpawnEnemiesRow(row int, enemyId string, enemyPoints int, count int) {
+func (g *GameState)SpawnEnemiesRow(row int, enemySuffix int, enemyPoints int, count int) {
     position := Vec2[float64]{x: 6.0, y: (enemyHeight + 6.0) * float64(row) + 6.0}
 
     enemiesNew := make([]*Enemy, count)
 
+    enemyId := fmt.Sprintf("enemy%d", enemySuffix)
+    enemyProjectileId := fmt.Sprintf("enemy_projectile_%d", enemySuffix)
+
     for i := range count {
         enemiesNew[i] = &Enemy{}
-        enemiesNew[i].Init(enemyId, 3, position, Vec2[int]{x: i, y: row}, enemyPoints)
+        enemiesNew[i].Init(enemyId, enemyProjectileId, 3, position, Vec2[int]{x: i, y: row}, enemyPoints)
 
         position.x += 10.0//enemy x + margin
     }
