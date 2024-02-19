@@ -14,7 +14,7 @@ import (
 
 const SpriteSheet = "assets/imgs/spritesheet.png"
 const GAME_WIDTH = 150
-const GAME_HEIGHT = 120
+const GAME_HEIGHT = 150
 const H_MARGIN = 25
 const V_MARGIN = 10
 
@@ -112,6 +112,14 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+    walls := g.gamestate.GetWalls()
+    for _, w := range walls {
+        wallImg := WallToImage(w)
+        op := &ebiten.DrawImageOptions{}
+        op.GeoM.Translate(w.position.x - w.hitbox.x/2 + H_MARGIN, w.position.y - w.hitbox.y/2)
+        screen.DrawImage(wallImg, op)
+    }
+
     objects := g.gamestate.GetObjectsToDraw()
     for _, entity := range objects {
         entitySprite, err := g.assetloader.get(entity.getId(), entity.getCurrentFrame())
@@ -127,11 +135,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
         screen.DrawImage(entitySprite, op)
     }
 
-    walls := g.gamestate.GetWalls()
-    wallImg := WallToImage(walls[0])
-    op := &ebiten.DrawImageOptions{}
-    op.GeoM.Translate(walls[0].position.x, walls[0].position.y)
-    screen.DrawImage(wallImg, op)
 
     g.DrawUI(screen)
 }
@@ -178,7 +181,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func main() {
-	ebiten.SetWindowSize(640, 480)
+    factor := 3
+	ebiten.SetWindowSize(factor*(GAME_WIDTH + 2 * H_MARGIN), factor*(GAME_HEIGHT + 2 * V_MARGIN))
 	ebiten.SetWindowTitle("Space Invaders")
     game := Game{}
     game.Init()

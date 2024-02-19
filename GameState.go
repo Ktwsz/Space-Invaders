@@ -15,6 +15,8 @@ const playerProjectileSpeed = -3.5
 const playerProjectileCooldown = 750
 const enemyProjectileSpeed = 1.0
 const enemyProjectileCooldown = 1250
+const wallCount = 4
+const WALL_POS_Y = 102
 
 type GameState struct {
     bounds Vec2[int]
@@ -28,7 +30,7 @@ type GameState struct {
 
     projectiles []*Projectile
 
-    walls [1]*Wall
+    walls [wallCount]*Wall
 
     score int
     pauseState int
@@ -39,7 +41,7 @@ type GameState struct {
 }
 
 func (g *GameState)Init() {
-    g.bounds = Vec2[int]{x: 130, y: 120}
+    g.bounds = Vec2[int]{x: GAME_WIDTH, y: GAME_HEIGHT}
     g.pauseState = GAME_RUNNING//TODO: remove later
     g.player.Init(g.bounds)
 
@@ -49,9 +51,7 @@ func (g *GameState)Init() {
     g.SpawnEnemiesRow(1, "enemy2", 20, enemyCountColumn)
     g.SpawnEnemiesRow(2, "enemy3", 10, enemyCountColumn)
 
-    g.walls[0] = &Wall{position: Vec2[float64]{x: 65, y: 90},
-                       hitbox: Vec2[float64]{x: WALL_SIZE_X, y: WALL_SIZE_Y},
-                       hitboxReceiveMask: HITBOX_PROJECTILE}
+    g.SpawnWalls()
 
     enemyMoveTicker := time.NewTicker(enemyProjectileCooldown * time.Millisecond)
     g.enemyMoveDone = make(chan bool)
@@ -93,12 +93,28 @@ func (g *GameState)HandleIfWon() {
     }
 }
 
-func (g *GameState)SetWallsBody(body WallBody) {
-    g.wallsBodySet = true
-    g.walls[0].body = body
+func (g *GameState)SpawnWalls() {
+    margin := g.bounds.x / wallCount - WALL_SIZE_X
+    wallPos := Vec2[float64]{x: float64(margin)/2.0, y: WALL_POS_Y}
+    for i := range wallCount {
+        g.walls[i] = &Wall{position: wallPos,
+                           hitbox: Vec2[float64]{x: WALL_SIZE_X, y: WALL_SIZE_Y},
+                           hitboxReceiveMask: HITBOX_PROJECTILE,
+                           hitboxSendMask: HITBOX_WALL,
+                           gamestateIx: i}
+
+        wallPos.x += float64(WALL_SIZE_X + margin)
+    }
 }
 
-func (g *GameState)GetWalls() [1]*Wall {
+func (g *GameState)SetWallsBody(body WallBody) {
+    g.wallsBodySet = true
+    for i := range wallCount {
+        g.walls[i].body = body
+    }
+}
+
+func (g *GameState)GetWalls() [wallCount]*Wall {
     return g.walls
 }
 
@@ -157,7 +173,7 @@ func (g *GameState)SpawnEnemyprojectile(enemy *Enemy, col int) bool {
                              hitbox: Vec2[float64]{x: 3, y: 7},
                              spriteSize: Vec2[float64]{x: 3, y: 7},
                              speed: enemyProjectileSpeed,
-                             hitboxReceiveMask: HITBOX_PROJECTILE | HITBOX_PLAYER,
+                             hitboxReceiveMask: HITBOX_PROJECTILE | HITBOX_PLAYER | HITBOX_WALL,
                              hitboxSendMask: HITBOX_PROJECTILE | HITBOX_ENEMY,
                          }
 
@@ -262,7 +278,7 @@ func (g *GameState)SpawnPlayerProjectile() bool {
                              hitbox: Vec2[float64]{x: 1, y: 6},
                              spriteSize: Vec2[float64]{x: 1, y: 6},
                              speed: playerProjectileSpeed,
-                             hitboxReceiveMask: HITBOX_PROJECTILE | HITBOX_ENEMY,
+                             hitboxReceiveMask: HITBOX_PROJECTILE | HITBOX_ENEMY | HITBOX_WALL,
                              hitboxSendMask: HITBOX_PROJECTILE | HITBOX_PLAYER,
                          }
 
@@ -376,19 +392,46 @@ func (g *GameState)HandleCollisions() {
         }
     }
 
+    for i := range g.walls {
+        g.walls[i].collideMap = make(map[EntityHit]bool)
+        tree.insert(g.walls[i])
+    }
+
     collisions := tree.getAllIntersections()
 
     for i := range collisions {
         e := collisions[i].entities 
         e1, e2 := e[0], e[1]
 
-        if HitboxCollide(e1, e2) {
-            if HitboxReceive(e2, e1) {
-                g.HitEntity(e1, e2)
+        if e1.getEntityType() == ENTITY_WALL {
+            wall := g.walls[e1.getGamestateIx()]
+            if pos, didHit := wall.getHitPos(e2); didHit {
+                if HitboxReceive(e1, e2) {
+                    g.HitWall(e1, e2, pos)
+                }
+                if HitboxReceive(e2, e1) {
+                    g.HitEntity(e2, e1)
+                }
             }
+        } else if e2.getEntityType() == ENTITY_WALL {
+            wall := g.walls[e2.getGamestateIx()]
+            if pos, didHit := wall.getHitPos(e1); didHit {
+                if HitboxReceive(e1, e2) {
+                    g.HitEntity(e1, e2)
+                }
+                if HitboxReceive(e2, e1) {
+                    g.HitWall(e2, e1, pos)
+                }
+            }
+        } else {
+            if HitboxCollide(e1, e2) {
+                if HitboxReceive(e2, e1) {
+                    g.HitEntity(e1, e2)
+                }
 
-            if HitboxReceive(e1, e2) {
-                g.HitEntity(e2, e1)
+                if HitboxReceive(e1, e2) {
+                    g.HitEntity(e2, e1)
+                }
             }
         }
     }
@@ -424,6 +467,13 @@ func (g *GameState)HitEntity(e EntityHit, sender EntityHit) {
         }
         g.player.collideMap[sender] = true
     }
+}
+
+func (g *GameState)HitWall(e EntityHit, sender EntityHit, pos Vec2[int]) {
+    eIx := e.getGamestateIx()
+
+    g.walls[eIx].collideMap[sender] = true
+    g.walls[eIx].Hit(pos)
 }
 
 func (g *GameState)GetPlayerLivesStr() string {

@@ -3,6 +3,7 @@ package main
 import (
     "golang.org/x/exp/constraints"
     "sort"
+    "math"
 )
 
 const (
@@ -22,6 +23,7 @@ const (
     HITBOX_PLAYER = 1 << iota
     HITBOX_ENEMY
     HITBOX_PROJECTILE
+    HITBOX_WALL
 )
 
 const (
@@ -30,9 +32,6 @@ const (
     GAME_OVER
     GAME_WIN
 )
-
-type WallBody = [WALL_SIZE_X][WALL_SIZE_Y]bool
-
 
 type Vec2[T constraints.Float | constraints.Integer] struct {
     x, y T
@@ -48,6 +47,18 @@ func (v Vec2[T])subtract(other Vec2[T]) Vec2[T] {
 
 func (v Vec2[T])scale(scalar T) Vec2[T] {
     return Vec2[T]{x: v.x * scalar, y: v.y * scalar}
+}
+
+func (v Vec2[float64])toInt() Vec2[int] {
+    return Vec2[int]{x: int(v.x), y: int(v.y)}
+}
+
+func (v Vec2[int])toFloat64() Vec2[float64] {
+    return Vec2[float64]{x: float64(v.x), y: float64(v.y)}
+}
+
+func vecLen(v Vec2[float64]) float64 {
+    return math.Sqrt(v.x * v.x + v.y * v.y)
 }
 
 
@@ -76,12 +87,16 @@ type EntityHit interface {
     didCollideWith(e EntityHit) bool
 }
 
-func HitboxCollide(e1 EntityHit, e2 EntityHit) bool {
-    e1Pos, e2Pos := e1.getPosition(), e2.getPosition()
-    e1Hitbox, e2Hitbox := e1.getHitbox().scale(0.5), e2.getHitbox().scale(0.5)
+func getHitboxBounds(e EntityHit) (Vec2[float64], Vec2[float64]) {
+    ePos := e.getPosition()
+    eHitbox := e.getHitbox().scale(0.5)
 
-    e1Min, e1Max := e1Pos.subtract(e1Hitbox), e1Pos.add(e1Hitbox)
-    e2Min, e2Max := e2Pos.subtract(e2Hitbox), e2Pos.add(e2Hitbox)
+    return ePos.subtract(eHitbox), ePos.add(eHitbox)
+}
+
+func HitboxCollide(e1 EntityHit, e2 EntityHit) bool {
+    e1Min, e1Max := getHitboxBounds(e1)
+    e2Min, e2Max := getHitboxBounds(e2)
 
     return RectIntersects(e1Min, e1Max, e2Min, e2Max)
 } 
