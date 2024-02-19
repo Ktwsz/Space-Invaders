@@ -112,6 +112,14 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+    if g.gamestate.IsGameRunning() {
+        g.DrawGameObjects(screen)
+    }
+
+    g.DrawUI(screen)
+}
+
+func (g *Game)DrawGameObjects(screen *ebiten.Image) {
     walls := g.gamestate.GetWalls()
     for _, w := range walls {
         wallImg := WallToImage(w)
@@ -134,9 +142,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
         screen.DrawImage(entitySprite, op)
     }
-
-
-    g.DrawUI(screen)
 }
 
 func (g *Game)DrawUI(screen *ebiten.Image) {
@@ -160,11 +165,15 @@ func (g *Game)DrawUIRunning(screen *ebiten.Image) {
 }
 
 func (g *Game)DrawUIOver(screen *ebiten.Image) {
-
+    DrawTextImage(screen, "Game Over! :(", GAME_WIDTH / 2 - 20, GAME_HEIGHT / 2, 1, 1)
+    DrawTextImage(screen, "To try again reopen the app.", GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 20, 1, 1)
 }
 
 func (g *Game)DrawUIWin(screen *ebiten.Image) {
-
+    scoreResultStr := g.gamestate.GetScoreResultStr()
+    DrawTextImage(screen, "GG! Thanks for playing", GAME_WIDTH / 2 - 40, GAME_HEIGHT / 2, 1, 1)
+    DrawTextImage(screen, scoreResultStr, GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 20, 1, 1)
+    DrawTextImage(screen, "To try again reopen the app.", GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 40, 1, 1)
 }
 
 func DrawTextImage(screen *ebiten.Image, str string, posX, posY, scaleX, scaleY float64) {

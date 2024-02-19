@@ -510,3 +510,7 @@ func (g *GameState)GetPlayerLivesStr() string {
 func (g *GameState)GetScoreStr() string {
     return fmt.Sprintf("score %d", g.score)
 }
+
+func (g *GameState)GetScoreResultStr() string {
+    return fmt.Sprintf("Your score was: %d", g.score)
+}
