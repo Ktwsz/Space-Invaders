@@ -1,14 +1,15 @@
 package main
 
 import (
+	"image/color"
 	"log"
 
+	"github.com/hajimehoshi/bitmapfont/v3"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-    "github.com/hajimehoshi/bitmapfont/v3"
-    "github.com/hajimehoshi/ebiten/v2/text"
+	"github.com/hajimehoshi/ebiten/v2/text"
 
-    img "image"
+	img "image"
 )
 
 const SpriteSheet = "assets/imgs/spritesheet.png"
@@ -23,8 +24,6 @@ type Game struct{
 }
 
 func (g *Game)Init() {
-    g.gamestate.Init()
-
     g.assetloader.Init()
 
     err := g.assetloader.LoadSpriteSheet(SpriteSheet)
@@ -45,6 +44,42 @@ func (g *Game)Init() {
     g.assetloader.LoadSprite("enemy_projectile_1", img.Rectangle{Min: img.Point{X: 0, Y: 52}, Max: img.Point{X: 3, Y: 7}}, 5)
     g.assetloader.LoadSprite("enemy_projectile_2", img.Rectangle{Min: img.Point{X: 0, Y: 60}, Max: img.Point{X: 3, Y: 7}}, 5)
     g.assetloader.LoadSprite("enemy_projectile_3", img.Rectangle{Min: img.Point{X: 0, Y: 67}, Max: img.Point{X: 3, Y: 7}}, 5)
+
+    g.assetloader.LoadSprite("wall", img.Rectangle{Min: img.Point{X: 0, Y: 75}, Max: img.Point{X: 24, Y: 24}}, 1)
+
+    g.gamestate.Init()
+}
+
+func (g *Game)ImageToWall() WallBody {
+    maskColor := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+    wallImg, _ := g.assetloader.get("wall", 0)
+
+    sizeX, sizeY := wallImg.Bounds().Dx(), wallImg.Bounds().Dy()
+
+    body := WallBody{}
+
+    for i := range sizeX {
+        for j := range sizeY {
+            body[i][j] = wallImg.At(i, j) == maskColor
+        }
+    }
+
+    return body
+}
+
+func WallToImage(wall *Wall) *ebiten.Image {
+    COLOR_GREEN := color.RGBA{R: 0, G: 255, B: 0, A: 255}
+    result := ebiten.NewImage(WALL_SIZE_X, WALL_SIZE_Y)
+
+    for i := range WALL_SIZE_X {
+        for j := range WALL_SIZE_Y {
+            if wall.body[i][j] {
+                result.Set(i, j, COLOR_GREEN)
+            }
+        }
+    }
+
+    return result
 }
 
 func (g *Game) HandleInputs() {
@@ -62,6 +97,11 @@ func (g *Game) HandleInputs() {
 }
 
 func (g *Game) Update() error {
+    if !g.gamestate.wallsBodySet {
+        body := g.ImageToWall()
+        g.gamestate.SetWallsBody(body)
+    }
+
     if g.gamestate.IsGameRunning() {
         g.HandleInputs()
     }
@@ -86,6 +126,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
         screen.DrawImage(entitySprite, op)
     }
+
+    walls := g.gamestate.GetWalls()
+    wallImg := WallToImage(walls[0])
+    op := &ebiten.DrawImageOptions{}
+    op.GeoM.Translate(walls[0].position.x, walls[0].position.y)
+    screen.DrawImage(wallImg, op)
 
     g.DrawUI(screen)
 }

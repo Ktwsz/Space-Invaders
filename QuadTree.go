@@ -13,7 +13,7 @@ type QTree struct {
     center Vec2[float64]
     radius float64
     children [childrenCount]*QTree
-    entities [maxEntities]Entity
+    entities [maxEntities]EntityHit
     isDivided bool
 }
 
@@ -44,7 +44,7 @@ func (T *QTree)divide() {
     }
 }
 
-func (T *QTree)insert(entity Entity) {
+func (T *QTree)insert(entity EntityHit) {
     if !T.IsInBounds(entity) {
         return 
     }
@@ -92,7 +92,7 @@ func countEntites(T *QTree) int {
     return maxEntities
 }
 
-func (T *QTree)IsInBounds(entity Entity) bool {
+func (T *QTree)IsInBounds(entity EntityHit) bool {
     ePos := entity.getPosition()
     eHitbox := entity.getHitbox().scale(0.5)
     eMin, eMax := ePos.subtract(eHitbox), ePos.add(eHitbox)

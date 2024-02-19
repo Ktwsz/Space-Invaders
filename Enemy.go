@@ -19,7 +19,7 @@ type Enemy struct {
 
     points int
 
-    collideMap map[Entity]bool
+    collideMap map[EntityHit]bool
 }
 
 func (e Enemy)getId() string {
@@ -93,7 +93,7 @@ func (e Enemy)getHiboxReceiveMask() uint8 {
     return e.hitboxReceiveMask
 }
 
-func (e Enemy)didCollideWith(ent Entity) bool {
+func (e Enemy)didCollideWith(ent EntityHit) bool {
     _, exists := e.collideMap[ent]
     return exists
 }

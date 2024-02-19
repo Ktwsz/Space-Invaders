@@ -28,10 +28,14 @@ type GameState struct {
 
     projectiles []*Projectile
 
+    walls [1]*Wall
+
     score int
     pauseState int
 
     enemyMoveDone chan bool
+    wallsBodySet bool
+
 }
 
 func (g *GameState)Init() {
@@ -44,6 +48,10 @@ func (g *GameState)Init() {
     g.SpawnEnemiesRow(0, "enemy1", 50, enemyCountColumn)
     g.SpawnEnemiesRow(1, "enemy2", 20, enemyCountColumn)
     g.SpawnEnemiesRow(2, "enemy3", 10, enemyCountColumn)
+
+    g.walls[0] = &Wall{position: Vec2[float64]{x: 65, y: 90},
+                       hitbox: Vec2[float64]{x: WALL_SIZE_X, y: WALL_SIZE_Y},
+                       hitboxReceiveMask: HITBOX_PROJECTILE}
 
     enemyMoveTicker := time.NewTicker(enemyProjectileCooldown * time.Millisecond)
     g.enemyMoveDone = make(chan bool)
@@ -83,6 +91,15 @@ func (g *GameState)HandleIfWon() {
         g.pauseState = GAME_WIN
         g.enemyMoveDone <- true
     }
+}
+
+func (g *GameState)SetWallsBody(body WallBody) {
+    g.wallsBodySet = true
+    g.walls[0].body = body
+}
+
+func (g *GameState)GetWalls() [1]*Wall {
+    return g.walls
 }
 
 func (g *GameState)GetLastEnemyInCol() [enemyCountColumn]*Enemy {
@@ -150,11 +167,11 @@ func (g *GameState)SpawnEnemyprojectile(enemy *Enemy, col int) bool {
     return true
 }
 
-func (g *GameState)GetObjectsToDraw() []Entity{
+func (g *GameState)GetObjectsToDraw() []EntityDraw {
     enemiesLen := len(g.enemies)
     projectilesLen := len(g.projectiles)
 
-    objects := make([]Entity, projectilesLen + enemiesLen + 1)
+    objects := make([]EntityDraw, projectilesLen + enemiesLen + 1)
 
     objects[0] = &g.player
 
@@ -340,13 +357,13 @@ func (g *GameState)HandleCollisions() {
 
     tree := QTreeInitFromBounds(g.bounds)
 
-    g.player.collideMap = make(map[Entity]bool)
+    g.player.collideMap = make(map[EntityHit]bool)
     tree.insert(&g.player)
 
     for i := range g.enemies {
         if g.enemies[i].deathState == STATE_ALIVE {
             g.enemies[i].gamestateIx = i
-            g.enemies[i].collideMap = make(map[Entity]bool)
+            g.enemies[i].collideMap = make(map[EntityHit]bool)
             tree.insert(g.enemies[i])
         }
     }
@@ -354,7 +371,7 @@ func (g *GameState)HandleCollisions() {
     for i := range g.projectiles {
         if g.projectiles[i].deathState == STATE_ALIVE {
             g.projectiles[i].gamestateIx = i
-            g.projectiles[i].collideMap = make(map[Entity]bool)
+            g.projectiles[i].collideMap = make(map[EntityHit]bool)
             tree.insert(g.projectiles[i])
         }
     }
@@ -377,7 +394,7 @@ func (g *GameState)HandleCollisions() {
     }
 }
 
-func (g *GameState)HitEntity(e Entity, sender Entity) {
+func (g *GameState)HitEntity(e EntityHit, sender EntityHit) {
     if e.didCollideWith(sender) {
         return
     }

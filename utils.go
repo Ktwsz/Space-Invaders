@@ -9,6 +9,7 @@ const (
     ENTITY_PLAYER = iota
     ENTITY_ENEMY
     ENTITY_PROJECTILE
+    ENTITY_WALL
 )
 
 const (
@@ -29,6 +30,8 @@ const (
     GAME_OVER
     GAME_WIN
 )
+
+type WallBody = [WALL_SIZE_X][WALL_SIZE_Y]bool
 
 
 type Vec2[T constraints.Float | constraints.Integer] struct {
@@ -55,20 +58,25 @@ func RectIntersects[T constraints.Float | constraints.Integer](Min1 Vec2[T], Max
            Max1.y > Min2.y
 }
 
-type Entity interface {
+type EntityDraw interface {
     getId() string
     getCurrentFrame() int
     getPosition() Vec2[float64]
     getSpriteSize() Vec2[float64]
+    getEntityType() int
+}
+
+type EntityHit interface {
+    getPosition() Vec2[float64]
     getHitbox() Vec2[float64]
     getHitboxSendMask() uint8
     getHiboxReceiveMask() uint8
     getEntityType() int
     getGamestateIx() int
-    didCollideWith(e Entity) bool
+    didCollideWith(e EntityHit) bool
 }
 
-func HitboxCollide(e1 Entity, e2 Entity) bool {
+func HitboxCollide(e1 EntityHit, e2 EntityHit) bool {
     e1Pos, e2Pos := e1.getPosition(), e2.getPosition()
     e1Hitbox, e2Hitbox := e1.getHitbox().scale(0.5), e2.getHitbox().scale(0.5)
 
@@ -78,20 +86,20 @@ func HitboxCollide(e1 Entity, e2 Entity) bool {
     return RectIntersects(e1Min, e1Max, e2Min, e2Max)
 } 
 
-func HitboxReceive(sender Entity, receiver Entity) bool {
+func HitboxReceive(sender EntityHit, receiver EntityHit) bool {
     sMask := sender.getHitboxSendMask()
     rMask := receiver.getHiboxReceiveMask()
 
     return sMask & rMask > 0
 }
 
-func getDrawPosition(e Entity) Vec2[float64] {
+func getDrawPosition(e EntityDraw) Vec2[float64] {
     pos := e.getPosition()
     sprite := e.getSpriteSize()
     return pos.subtract(sprite.scale(0.5))
 }
 
-func IsOutOfBounds(bounds Vec2[int], e Entity) bool {
+func IsOutOfBounds(bounds Vec2[int], e EntityDraw) bool {
     pos := e.getPosition()
     sprite := e.getSpriteSize()
     minEdge := pos.subtract(sprite.scale(0.5))

@@ -12,7 +12,7 @@ type Player struct {
     spriteSize Vec2[float64]
 
     shotOnCooldown bool
-    collideMap map[Entity]bool
+    collideMap map[EntityHit]bool
 }
 
 func (p Player)getId() string {
@@ -66,7 +66,7 @@ func (p *Player)Hit() {
     p.lives -= 1
 }
 
-func (p Player)didCollideWith(ent Entity) bool {
+func (p Player)didCollideWith(ent EntityHit) bool {
     _, exists := p.collideMap[ent]
     return exists
 }
