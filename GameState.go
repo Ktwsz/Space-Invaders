@@ -373,13 +373,13 @@ func (g *GameState)HandleCollisions() {
 
     tree := QTreeInitFromBounds(g.bounds)
 
-    g.player.collideMap = make(map[EntityHit]bool)
+    g.player.handledCollisions = make(map[EntityHit]bool)
     tree.insert(&g.player)
 
     for i := range g.enemies {
         if g.enemies[i].deathState == STATE_ALIVE {
             g.enemies[i].gamestateIx = i
-            g.enemies[i].collideMap = make(map[EntityHit]bool)
+            g.enemies[i].handledCollisions = make(map[EntityHit]bool)
             tree.insert(g.enemies[i])
         }
     }
@@ -387,13 +387,13 @@ func (g *GameState)HandleCollisions() {
     for i := range g.projectiles {
         if g.projectiles[i].deathState == STATE_ALIVE {
             g.projectiles[i].gamestateIx = i
-            g.projectiles[i].collideMap = make(map[EntityHit]bool)
+            g.projectiles[i].handledCollisions = make(map[EntityHit]bool)
             tree.insert(g.projectiles[i])
         }
     }
 
     for i := range g.walls {
-        g.walls[i].collideMap = make(map[EntityHit]bool)
+        g.walls[i].handledCollisions = make(map[EntityHit]bool)
         tree.insert(g.walls[i])
     }
 
@@ -402,6 +402,12 @@ func (g *GameState)HandleCollisions() {
     for i := range collisions {
         e := collisions[i].entities 
         e1, e2 := e[0], e[1]
+
+        collision1 := g.SetCollisionHandled(e1, e2)
+        collision2 := g.SetCollisionHandled(e2, e1)
+        if !collision1 || !collision2 {
+            continue
+        }
 
         if e1.getEntityType() == ENTITY_WALL {
             wall := g.walls[e1.getGamestateIx()]
@@ -437,43 +443,61 @@ func (g *GameState)HandleCollisions() {
     }
 }
 
-func (g *GameState)HitEntity(e EntityHit, sender EntityHit) {
-    if e.didCollideWith(sender) {
-        return
+func (g *GameState)SetCollisionHandled(e1 EntityHit, e2 EntityHit) bool {
+    if e1.IsCollisionHandled(e2) {
+        return false
     }
+    
+    eIx := e1.getGamestateIx()
+
+    switch e1.getEntityType() {
+    case ENTITY_ENEMY:
+        enemy := g.enemies[eIx]
+        enemy.handledCollisions[e2] = true
+    case ENTITY_PROJECTILE:
+        projectile := g.projectiles[eIx]
+        projectile.handledCollisions[e2] = true
+    case ENTITY_PLAYER:
+        g.player.handledCollisions[e2] = true
+    case ENTITY_WALL:
+        wall := g.walls[eIx]
+        wall.handledCollisions[e2] = true
+    }
+
+    return true
+}
+
+func (g *GameState)HitEntity(e EntityHit, sender EntityHit) {
     eIx := e.getGamestateIx()
 
     switch e.getEntityType() {
     case ENTITY_ENEMY:
-        g.enemies[eIx].StartDying()
-        g.score += g.enemies[eIx].points
-        g.enemies[eIx].collideMap[sender] = true
-
         enemy := g.enemies[eIx]
+        enemy.StartDying()
+        g.score += g.enemies[eIx].points
 
         go g.SetEnemyDeathTimer(enemy, 500)
-    case ENTITY_PROJECTILE:
-        g.projectiles[eIx].StartDying()
-        g.projectiles[eIx].collideMap[sender] = true
 
+    case ENTITY_PROJECTILE:
         projectile := g.projectiles[eIx]
+        projectile.StartDying()
 
         go g.SetProjectileDeathTimer(projectile, 500)
+
     case ENTITY_PLAYER:
         g.player.Hit()
         if g.player.lives <= 0 {
             g.pauseState = GAME_OVER
             g.enemyMoveDone <- true
         }
-        g.player.collideMap[sender] = true
     }
 }
 
 func (g *GameState)HitWall(e EntityHit, sender EntityHit, pos Vec2[int]) {
     eIx := e.getGamestateIx()
 
-    g.walls[eIx].collideMap[sender] = true
-    g.walls[eIx].Hit(pos)
+    wall := g.walls[eIx]
+    wall.Hit(pos)
 }
 
 func (g *GameState)GetPlayerLivesStr() string {

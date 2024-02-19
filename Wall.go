@@ -16,7 +16,7 @@ type Wall struct {
 
     gamestateIx int
 
-    collideMap map[EntityHit]bool
+    handledCollisions map[EntityHit]bool
 }
 
 func (w Wall)getPosition() Vec2[float64] {
@@ -52,8 +52,8 @@ func IsInWallRect(w Wall, pos Vec2[float64]) bool {
            pos.y <= wMax.y
 } 
 
-func (w Wall)didCollideWith(e EntityHit) bool {
-    _, exists := w.collideMap[e]
+func (w Wall)IsCollisionHandled(e EntityHit) bool {
+    _, exists := w.handledCollisions[e]
     return exists
 }
 

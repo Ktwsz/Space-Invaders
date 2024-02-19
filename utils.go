@@ -84,7 +84,7 @@ type EntityHit interface {
     getHiboxReceiveMask() uint8
     getEntityType() int
     getGamestateIx() int
-    didCollideWith(e EntityHit) bool
+    IsCollisionHandled(e EntityHit) bool
 }
 
 func getHitboxBounds(e EntityHit) (Vec2[float64], Vec2[float64]) {

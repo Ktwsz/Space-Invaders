@@ -17,7 +17,7 @@ type Projectile struct {
     deathState int
     gamestateIx int
 
-    collideMap map[EntityHit]bool
+    handledCollisions map[EntityHit]bool
 }
 
 func (p Projectile)getId() string {
@@ -69,7 +69,7 @@ func (p Projectile)getHiboxReceiveMask() uint8 {
     return p.hitboxReceiveMask
 }
 
-func (p Projectile)didCollideWith(ent EntityHit) bool {
-    _, exists := p.collideMap[ent]
+func (p Projectile)IsCollisionHandled(ent EntityHit) bool {
+    _, exists := p.handledCollisions[ent]
     return exists
 }
