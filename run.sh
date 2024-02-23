@@ -1,1 +1,1 @@
-GOOS=windows go run .
+make linux && ./build/main
