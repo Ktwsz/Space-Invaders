@@ -38,6 +38,7 @@ type GameState struct {
     enemyMoveDone chan bool
     wallsBodySet bool
 
+    soundQueue []string
 }
 
 func (g *GameState)Init() {
@@ -91,6 +92,14 @@ func (g *GameState)HandleIfWon() {
         g.pauseState = GAME_WIN
         g.enemyMoveDone <- true
     }
+}
+
+func (g *GameState)ClearSoundQueue() {
+    g.soundQueue = []string{}
+}
+
+func (g *GameState)GetSoundQueue() []string {
+    return g.soundQueue
 }
 
 func (g *GameState)SpawnWalls() {
@@ -153,6 +162,7 @@ func (g *GameState)EnemyShoot() {
 
                 if didShoot {
                     g.enemyColProjectileCooldown[col] = true
+                    g.soundQueue = append(g.soundQueue, "enemy_shoot")
 
                     go g.SetEnemyCooldownTimer(col, 750)
                 }
@@ -264,6 +274,7 @@ func (g *GameState)SetEnemyCooldownTimer(column int, t time.Duration) {
 func (g *GameState)PlayerShoot() {
     if ok := g.SpawnPlayerProjectile(); ok {
         g.player.shotOnCooldown = true
+        g.soundQueue = append(g.soundQueue, "player_shoot")
 
         go g.SetCooldownTimer(750)
     }
@@ -295,6 +306,8 @@ func (g *GameState)MoveEnemies() {
     for i := range g.enemies {
         g.enemies[i].Move(g.enemySpeed)
     }
+
+    g.soundQueue = append(g.soundQueue, "enemy_move")
 }
 
 func (g *GameState)MoveProjectiles() {
@@ -476,6 +489,7 @@ func (g *GameState)HitEntity(e EntityHit, sender EntityHit) {
     switch e.getEntityType() {
     case ENTITY_ENEMY:
         enemy := g.enemies[eIx]
+        g.soundQueue = append(g.soundQueue, "enemy_die")
         enemy.StartDying()
         g.score += g.enemies[eIx].points
 
@@ -489,6 +503,7 @@ func (g *GameState)HitEntity(e EntityHit, sender EntityHit) {
 
     case ENTITY_PLAYER:
         g.player.Hit()
+        g.soundQueue = append(g.soundQueue, "player_hit")
         if g.player.lives <= 0 {
             g.pauseState = GAME_OVER
             g.enemyMoveDone <- true

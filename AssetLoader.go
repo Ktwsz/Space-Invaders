@@ -10,11 +10,13 @@ import (
 
 type AssetLoader struct {
     spritesheet img.NRGBA
-    assets map[string][]*ebiten.Image
+    assetsSprites map[string][]*ebiten.Image
+    assetsSounds map[string][]byte
 }
 
 func (assetloader *AssetLoader)Init() {
-    assetloader.assets = map[string][]*ebiten.Image{}
+    assetloader.assetsSprites = map[string][]*ebiten.Image{}
+    assetloader.assetsSounds = map[string][]byte{}
 }
 
 func (assetloader *AssetLoader)LoadSpriteSheet(path string) error {
@@ -52,7 +54,7 @@ func (assetloader *AssetLoader)LoadSprite(name string, bounds img.Rectangle, cou
         pos.x += sizeX + 1
     }
 
-    assetloader.assets[name] = images
+    assetloader.assetsSprites[name] = images
 }
 
 func (assetloader *AssetLoader)LoadSpriteWithDeath(name string, bounds img.Rectangle, count int, deathFrameBounds Vec2[int]) {
@@ -65,11 +67,11 @@ func (assetloader *AssetLoader)LoadSpriteWithDeath(name string, bounds img.Recta
     imageRect := img.Rectangle{Min: img.Point{X: posX, Y: posY}, Max: img.Point{X: posX + deathFrameBounds.x, Y: posY + deathFrameBounds.y}}
 
     subImage := assetloader.spritesheet.SubImage(imageRect)
-    assetloader.assets[name] = append(assetloader.assets[name], ebiten.NewImageFromImage(subImage))
+    assetloader.assetsSprites[name] = append(assetloader.assetsSprites[name], ebiten.NewImageFromImage(subImage))
 }
 
-func (assetloader *AssetLoader)get(name string, frame int) (*ebiten.Image, error) {
-    imgs := assetloader.assets[name]
+func (assetloader *AssetLoader)getSprite(name string, frame int) (*ebiten.Image, error) {
+    imgs := assetloader.assetsSprites[name]
     if imgs == nil {
         return nil, errors.New("no sprite found")
     }
@@ -77,4 +79,19 @@ func (assetloader *AssetLoader)get(name string, frame int) (*ebiten.Image, error
         return nil, errors.New("frame out of sprite length")
     }
     return imgs[frame], nil
+}
+
+func (assetloader *AssetLoader)LoadSound(path string, name string) error {
+    soundBytes, err := os.ReadFile(path)
+    if err != nil {
+        return err
+    }
+
+    assetloader.assetsSounds[name] = soundBytes
+
+    return nil
+}
+
+func (assetloader *AssetLoader)getSound(name string) []byte {
+    return assetloader.assetsSounds[name]
 }

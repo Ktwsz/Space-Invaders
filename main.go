@@ -3,13 +3,18 @@ package main
 import (
 	"image/color"
 	"log"
+    "fmt"
 
 	"github.com/hajimehoshi/bitmapfont/v3"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
+    "github.com/hajimehoshi/ebiten/v2/audio"
+    "github.com/hajimehoshi/ebiten/v2/audio/wav"
 
 	img "image"
+    
+    "bytes"
 )
 
 const SpriteSheet = "assets/imgs/spritesheet.png"
@@ -18,13 +23,17 @@ const GAME_HEIGHT = 150
 const H_MARGIN = 25
 const V_MARGIN = 10
 
+const sampleRate = 44000
+
 type Game struct{
     assetloader AssetLoader
     gamestate GameState
+    audioContext *audio.Context
 }
 
 func (g *Game)Init() {
     g.assetloader.Init()
+    g.audioContext = audio.NewContext(sampleRate)
 
     err := g.assetloader.LoadSpriteSheet(SpriteSheet)
     if err != nil {
@@ -47,12 +56,19 @@ func (g *Game)Init() {
 
     g.assetloader.LoadSprite("wall", img.Rectangle{Min: img.Point{X: 0, Y: 75}, Max: img.Point{X: 24, Y: 24}}, 1)
 
+    sound_dir := "assets/sounds/"
+    sounds := [5]string{"player_hit", "player_shoot", "enemy_die", "enemy_shoot", "enemy_move"}
+    for _, sound := range sounds {
+        sound_path := fmt.Sprintf("%s%s.wav", sound_dir, sound)
+        g.assetloader.LoadSound(sound_path, sound)
+    }
+
     g.gamestate.Init()
 }
 
 func (g *Game)ImageToWall() WallBody {
     maskColor := color.RGBA{R: 255, G: 0, B: 0, A: 255}
-    wallImg, _ := g.assetloader.get("wall", 0)
+    wallImg, _ := g.assetloader.getSprite("wall", 0)
 
     sizeX, sizeY := wallImg.Bounds().Dx(), wallImg.Bounds().Dy()
 
@@ -107,8 +123,30 @@ func (g *Game) Update() error {
     }
 
     g.gamestate.GameLoop()
+    g.PlaySounds()
 
     return nil
+}
+
+func (g *Game)PlaySounds() {
+    soundsQueue := g.gamestate.GetSoundQueue()
+    g.gamestate.ClearSoundQueue()
+
+    for _, sound_name := range soundsQueue {
+        soundBytes := g.assetloader.getSound(sound_name)
+
+        sound, err := wav.DecodeWithSampleRate(sampleRate, bytes.NewBuffer(soundBytes))
+        if err != nil {
+            return
+        }
+
+        player, err := g.audioContext.NewPlayer(sound)
+        if err != nil {
+            return
+        }
+
+        player.Play()
+    } 
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -130,7 +168,7 @@ func (g *Game)DrawGameObjects(screen *ebiten.Image) {
 
     objects := g.gamestate.GetObjectsToDraw()
     for _, entity := range objects {
-        entitySprite, err := g.assetloader.get(entity.getId(), entity.getCurrentFrame())
+        entitySprite, err := g.assetloader.getSprite(entity.getId(), entity.getCurrentFrame())
         if err != nil {
             log.Fatal(err)
             return

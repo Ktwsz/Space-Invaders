@@ -1,5 +1,7 @@
 github.com/chobie/go-gaussian v0.0.0-20150107165016-53c09d90eeaf h1:joIg05jbCevMTHYELK+iU5xNS6FoOEhp9IpFQ5e2B+8=
 github.com/chobie/go-gaussian v0.0.0-20150107165016-53c09d90eeaf/go.mod h1:cTHhhPCN9aDCOgkFM4Pty90DILaV/TrfCRhMtOFCUUI=
+github.com/ebitengine/oto/v3 v3.1.0 h1:9tChG6rizyeR2w3vsygTTTVVJ9QMMyu00m2yBOCch6U=
+github.com/ebitengine/oto/v3 v3.1.0/go.mod h1:IK1QTnlfZK2GIB6ziyECm433hAdTaPpOsGMLhEyEGTg=
 github.com/ebitengine/purego v0.5.0 h1:JrMGKfRIAM4/QVKaesIIT7m/UVjTj5GYhRSQYwfVdpo=
 github.com/ebitengine/purego v0.5.0/go.mod h1:ah1In8AOtksoNK6yk5z1HTJeUkC1Ez4Wk2idgGslMwQ=
 github.com/hajimehoshi/bitmapfont/v3 v3.0.0 h1:r2+6gYK38nfztS/et50gHAswb9hXgxXECYgE8Nczmi4=
