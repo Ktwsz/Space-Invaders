@@ -43,10 +43,16 @@ type GameState struct {
 
 func (g *GameState)Init() {
     g.bounds = Vec2[int]{x: GAME_WIDTH, y: GAME_HEIGHT}
-    g.pauseState = GAME_RUNNING//TODO: remove later
-    g.player.Init(g.bounds)
+    g.pauseState = GAME_STARTING
 
     g.enemySpeed = 2.0
+
+}
+
+func (g *GameState)StartGame() {
+    g.pauseState = GAME_RUNNING
+
+    g.player.Init(g.bounds)
 
     g.SpawnEnemiesRow(0, 3, 50, enemyCountColumn)
     g.SpawnEnemiesRow(1, 2, 20, enemyCountColumn)
@@ -66,6 +72,7 @@ func (g *GameState)Init() {
             }
         }
     }()
+
 }
 
 func (g *GameState)GameLoop() {

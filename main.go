@@ -11,6 +11,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text"
     "github.com/hajimehoshi/ebiten/v2/audio"
     "github.com/hajimehoshi/ebiten/v2/audio/wav"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	img "image"
     
@@ -23,17 +24,28 @@ const GAME_HEIGHT = 150
 const H_MARGIN = 25
 const V_MARGIN = 10
 
+const SCREEN_WIDTH = GAME_WIDTH + 2 * H_MARGIN
+const SCREEN_HEIGHT = GAME_HEIGHT + 2 * V_MARGIN
+
 const sampleRate = 44000
+
+const (
+    SCREEN_MAIN = iota
+    SCREEN_OPT
+)
 
 type Game struct{
     assetloader AssetLoader
     gamestate GameState
     audioContext *audio.Context
+    startScreen int
+    volume128 int
 }
 
 func (g *Game)Init() {
     g.assetloader.Init()
     g.audioContext = audio.NewContext(sampleRate)
+    g.volume128 = 10//for the sake of our ears
 
     err := g.assetloader.LoadSpriteSheet(SpriteSheet)
     if err != nil {
@@ -99,27 +111,58 @@ func WallToImage(wall *Wall) *ebiten.Image {
 }
 
 func (g *Game) HandleInputs() {
-    if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
-        g.gamestate.PlayerMoveLeft()
-    }
+    if g.gamestate.IsGameRunning() {
+        if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
+            g.gamestate.PlayerMoveLeft()
+        }
 
-    if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
-        g.gamestate.PlayerMoveRight()
-    }
+        if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
+            g.gamestate.PlayerMoveRight()
+        }
 
-    if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
-        g.gamestate.PlayerShoot()
+        if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
+            g.gamestate.PlayerShoot()
+        }
+    } else {
+        switch g.startScreen {
+        case SCREEN_MAIN:
+            if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+                g.gamestate.StartGame()
+            }
+            if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+                g.startScreen = SCREEN_OPT
+            }
+        case SCREEN_OPT:
+            if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+                g.startScreen = SCREEN_MAIN
+            }
+            if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
+                g.volume128--;
+            }
+
+            if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
+                g.volume128++;
+                if g.volume128 > 128 {
+                    g.volume128 = 128
+                }
+                if g.volume128 < 0 {
+                    g.volume128 = 0
+                }
+            }
+        }
     }
 }
 
 func (g *Game) Update() error {
+    g.HandleInputs()
+
+    if !g.gamestate.IsGameRunning() {
+        return nil
+    }
+
     if !g.gamestate.wallsBodySet {
         body := g.ImageToWall()
         g.gamestate.SetWallsBody(body)
-    }
-
-    if g.gamestate.IsGameRunning() {
-        g.HandleInputs()
     }
 
     g.gamestate.GameLoop()
@@ -131,6 +174,8 @@ func (g *Game) Update() error {
 func (g *Game)PlaySounds() {
     soundsQueue := g.gamestate.GetSoundQueue()
     g.gamestate.ClearSoundQueue()
+
+    volume := float64(g.volume128) / 128
 
     for _, sound_name := range soundsQueue {
         soundBytes := g.assetloader.getSound(sound_name)
@@ -145,6 +190,7 @@ func (g *Game)PlaySounds() {
             return
         }
 
+        player.SetVolume(volume)
         player.Play()
     } 
 }
@@ -184,6 +230,8 @@ func (g *Game)DrawGameObjects(screen *ebiten.Image) {
 
 func (g *Game)DrawUI(screen *ebiten.Image) {
     switch g.gamestate.pauseState {
+    case GAME_STARTING:
+        g.DrawUIStarting(screen)
     case GAME_RUNNING:
         g.DrawUIRunning(screen)
     case GAME_OVER:
@@ -191,6 +239,50 @@ func (g *Game)DrawUI(screen *ebiten.Image) {
     case GAME_WIN:
         g.DrawUIWin(screen)
     }
+}
+
+func (g *Game)DrawUIStarting(screen *ebiten.Image) {
+    title := "Space Invaders"
+    OptionsStr := "Press Space for controls"
+    OptionsStrcd := "and options"
+    startGameStr := "Press Enter to start"
+
+    optionsTitle := "Options"
+    optionsControlsStr := "Controls: "
+    optionsLeft := "Move left: Arrow Left"
+    optionsRight := "Move right: Arrow Right"
+    optionsShoot := "Shoot: Arrow Up"
+    optionsVolStr := "Adjust volume with"
+    optionsVolStrcd := "left and right arrows"
+    optionsReturn := "Press space to go back"
+
+    switch g.startScreen {
+    case SCREEN_MAIN:
+        DrawTextImage(screen, title, SCREEN_WIDTH/ 2 - 40, 20, 1, 1)
+        DrawTextImage(screen, OptionsStr, 10, 50, 1, 1)
+        DrawTextImage(screen, OptionsStrcd, 10, 60, 1, 1)
+        DrawTextImage(screen, startGameStr, SCREEN_WIDTH/ 2 - 75, SCREEN_HEIGHT - 10, 1.2, 1.2)
+    case SCREEN_OPT:
+        DrawTextImage(screen, optionsTitle, SCREEN_WIDTH/ 2 - 30, 20, 1, 1)
+        DrawTextImage(screen, optionsControlsStr, 10, 30, 1, 1)
+        DrawTextImage(screen, optionsLeft, 15, 43, 1, 1)
+        DrawTextImage(screen, optionsRight, 15, 56, 1, 1)
+        DrawTextImage(screen, optionsShoot, 15, 69, 1, 1)
+        DrawTextImage(screen, optionsVolStr, 10, 100, 1, 1)
+        DrawTextImage(screen, optionsVolStrcd, 10, 113, 1, 1)
+        DrawVolumeBar(screen, g.volume128, 10, 120, SCREEN_WIDTH- 20, 10)
+        DrawTextImage(screen, optionsReturn, SCREEN_WIDTH / 2 - 75, SCREEN_HEIGHT - 10, 1, 1)
+    }
+}
+
+func DrawVolumeBar(screen *ebiten.Image, volume128, x, y, w, h int) {
+    COLOR_FILL := color.RGBA{R: 0, G: 255, B: 0, A: 255}
+    COLOR_EMPTY := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+    fillPerc := float64(volume128) / 128
+    fillWidth := float32(fillPerc) * float32(w)
+
+    vector.DrawFilledRect(screen, float32(x), float32(y), fillWidth, float32(h), COLOR_FILL, true)
+    vector.DrawFilledRect(screen, float32(x) + fillWidth, float32(y), float32(w) - fillWidth, float32(h), COLOR_EMPTY, true)
 }
 
 func (g *Game)DrawUIRunning(screen *ebiten.Image) {
@@ -224,12 +316,12 @@ func DrawTextImage(screen *ebiten.Image, str string, posX, posY, scaleX, scaleY 
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-    return GAME_WIDTH + 2 * H_MARGIN, GAME_HEIGHT + 2 * V_MARGIN
+    return SCREEN_WIDTH, SCREEN_HEIGHT
 }
 
 func main() {
     factor := 3
-	ebiten.SetWindowSize(factor*(GAME_WIDTH + 2 * H_MARGIN), factor*(GAME_HEIGHT + 2 * V_MARGIN))
+	ebiten.SetWindowSize(factor*SCREEN_WIDTH, factor*SCREEN_HEIGHT)
 	ebiten.SetWindowTitle("Space Invaders")
     game := Game{}
     game.Init()
