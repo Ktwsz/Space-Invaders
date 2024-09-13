@@ -1,31 +1,34 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"log"
-    "fmt"
 
 	"github.com/hajimehoshi/bitmapfont/v3"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
-    "github.com/hajimehoshi/ebiten/v2/audio"
-    "github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	img "image"
-    
-    "bytes"
+
+	"bytes"
+	"space_invaders/asset_loader"
+	"space_invaders/entity"
+	"space_invaders/game_state"
+	game_states "space_invaders/game_state/states"
+	"space_invaders/utils"
 )
 
 const SpriteSheet = "assets/imgs/spritesheet.png"
-const GAME_WIDTH = 150
-const GAME_HEIGHT = 150
 const H_MARGIN = 25
 const V_MARGIN = 10
 
-const SCREEN_WIDTH = GAME_WIDTH + 2 * H_MARGIN
-const SCREEN_HEIGHT = GAME_HEIGHT + 2 * V_MARGIN
+const SCREEN_WIDTH = game_state.GAME_WIDTH + 2 * H_MARGIN
+const SCREEN_HEIGHT = game_state.GAME_HEIGHT + 2 * V_MARGIN
 
 const sampleRate = 44000
 
@@ -35,8 +38,8 @@ const (
 )
 
 type Game struct{
-    assetloader AssetLoader
-    gamestate GameState
+    assetloader asset_loader.AssetLoader
+    gamestate game_state.GameState
     audioContext *audio.Context
     startScreen int
     volume128 int
@@ -55,12 +58,12 @@ func (g *Game)Init() {
 
     g.assetloader.LoadSprite("player", img.Rectangle{Min: img.Point{X: 0, Y: 36}, Max: img.Point{X: 11, Y: 8}}, 1)
 
-    g.assetloader.LoadSpriteWithDeath("enemy1", img.Rectangle{Min: img.Point{X: 0, Y: 0}, Max: img.Point{X: 8, Y: 8}}, 4, Vec2[int]{x: 8, y: 8})
-    g.assetloader.LoadSpriteWithDeath("enemy2", img.Rectangle{Min: img.Point{X: 0, Y: 9}, Max: img.Point{X: 8, Y: 8}}, 4, Vec2[int]{x: 8, y: 8})
-    g.assetloader.LoadSpriteWithDeath("enemy3", img.Rectangle{Min: img.Point{X: 0, Y: 18}, Max: img.Point{X: 8, Y: 8}}, 4, Vec2[int]{x: 8, y: 8})
-    g.assetloader.LoadSpriteWithDeath("enemy4", img.Rectangle{Min: img.Point{X: 0, Y: 27}, Max: img.Point{X: 8, Y: 8}}, 4, Vec2[int]{x: 8, y: 8})
+    g.assetloader.LoadSpriteWithDeath("enemy1", img.Rectangle{Min: img.Point{X: 0, Y: 0}, Max: img.Point{X: 8, Y: 8}}, 4, utils.CreateVec(8, 8))
+    g.assetloader.LoadSpriteWithDeath("enemy2", img.Rectangle{Min: img.Point{X: 0, Y: 9}, Max: img.Point{X: 8, Y: 8}}, 4, utils.CreateVec(8, 8))
+    g.assetloader.LoadSpriteWithDeath("enemy3", img.Rectangle{Min: img.Point{X: 0, Y: 18}, Max: img.Point{X: 8, Y: 8}}, 4, utils.CreateVec(8, 8))
+    g.assetloader.LoadSpriteWithDeath("enemy4", img.Rectangle{Min: img.Point{X: 0, Y: 27}, Max: img.Point{X: 8, Y: 8}}, 4, utils.CreateVec(8, 8))
 
-    g.assetloader.LoadSpriteWithDeath("player_projectile", img.Rectangle{Min: img.Point{X: 0, Y: 45}, Max: img.Point{X: 1, Y: 6}}, 2, Vec2[int]{x: 6, y: 6})
+    g.assetloader.LoadSpriteWithDeath("player_projectile", img.Rectangle{Min: img.Point{X: 0, Y: 45}, Max: img.Point{X: 1, Y: 6}}, 2, utils.CreateVec(6, 6))
 
     g.assetloader.LoadSprite("enemy_projectile_1", img.Rectangle{Min: img.Point{X: 0, Y: 52}, Max: img.Point{X: 3, Y: 7}}, 5)
     g.assetloader.LoadSprite("enemy_projectile_2", img.Rectangle{Min: img.Point{X: 0, Y: 60}, Max: img.Point{X: 3, Y: 7}}, 5)
@@ -78,13 +81,13 @@ func (g *Game)Init() {
     g.gamestate.Init()
 }
 
-func (g *Game)ImageToWall() WallBody {
+func (g *Game)ImageToWall() entity.WallBody {
     maskColor := color.RGBA{R: 255, G: 0, B: 0, A: 255}
-    wallImg, _ := g.assetloader.getSprite("wall", 0)
+    wallImg, _ := g.assetloader.GetSprite("wall", 0)
 
     sizeX, sizeY := wallImg.Bounds().Dx(), wallImg.Bounds().Dy()
 
-    body := WallBody{}
+    body := entity.WallBody{}
 
     for i := range sizeX {
         for j := range sizeY {
@@ -95,13 +98,13 @@ func (g *Game)ImageToWall() WallBody {
     return body
 }
 
-func WallToImage(wall *Wall) *ebiten.Image {
+func WallToImage(wall *entity.Wall) *ebiten.Image {
     COLOR_GREEN := color.RGBA{R: 0, G: 255, B: 0, A: 255}
-    result := ebiten.NewImage(WALL_SIZE_X, WALL_SIZE_Y)
+    result := ebiten.NewImage(entity.WALL_SIZE_X, entity.WALL_SIZE_Y)
 
-    for i := range WALL_SIZE_X {
-        for j := range WALL_SIZE_Y {
-            if wall.body[i][j] {
+    for i := range entity.WALL_SIZE_X {
+        for j := range entity.WALL_SIZE_Y {
+            if wall.GetBody(i, j) {
                 result.Set(i, j, COLOR_GREEN)
             }
         }
@@ -160,7 +163,7 @@ func (g *Game) Update() error {
         return nil
     }
 
-    if !g.gamestate.wallsBodySet {
+    if !g.gamestate.GetWallsBodySet() {
         body := g.ImageToWall()
         g.gamestate.SetWallsBody(body)
     }
@@ -178,7 +181,7 @@ func (g *Game)PlaySounds() {
     volume := float64(g.volume128) / 128
 
     for _, sound_name := range soundsQueue {
-        soundBytes := g.assetloader.getSound(sound_name)
+        soundBytes := g.assetloader.GetSound(sound_name)
 
         sound, err := wav.DecodeWithSampleRate(sampleRate, bytes.NewBuffer(soundBytes))
         if err != nil {
@@ -208,35 +211,35 @@ func (g *Game)DrawGameObjects(screen *ebiten.Image) {
     for _, w := range walls {
         wallImg := WallToImage(w)
         op := &ebiten.DrawImageOptions{}
-        op.GeoM.Translate(w.position.x - w.hitbox.x/2 + H_MARGIN, w.position.y - w.hitbox.y/2)
+        op.GeoM.Translate(w.GetPosition().X - w.GetHitbox().X/2 + H_MARGIN, w.GetPosition().Y - w.GetHitbox().Y/2)
         screen.DrawImage(wallImg, op)
     }
 
     objects := g.gamestate.GetObjectsToDraw()
     for _, entity := range objects {
-        entitySprite, err := g.assetloader.getSprite(entity.getId(), entity.getCurrentFrame())
+        entitySprite, err := g.assetloader.GetSprite(entity.GetId(), entity.GetCurrentFrame())
         if err != nil {
             log.Fatal(err)
             return
         }
 
         op := &ebiten.DrawImageOptions{}
-        drawPosition := getDrawPosition(entity)
-        op.GeoM.Translate(drawPosition.x + H_MARGIN, drawPosition.y)
+        drawPosition := utils.GetDrawPosition(entity)
+        op.GeoM.Translate(drawPosition.X + H_MARGIN, drawPosition.Y)
 
         screen.DrawImage(entitySprite, op)
     }
 }
 
 func (g *Game)DrawUI(screen *ebiten.Image) {
-    switch g.gamestate.pauseState {
-    case GAME_STARTING:
+    switch g.gamestate.GetPauseState() {
+    case game_states.STARTING:
         g.DrawUIStarting(screen)
-    case GAME_RUNNING:
+    case game_states.RUNNING:
         g.DrawUIRunning(screen)
-    case GAME_OVER:
+    case game_states.OVER:
         g.DrawUIOver(screen)
-    case GAME_WIN:
+    case game_states.WIN:
         g.DrawUIWin(screen)
     }
 }
@@ -287,23 +290,23 @@ func DrawVolumeBar(screen *ebiten.Image, volume128, x, y, w, h int) {
 
 func (g *Game)DrawUIRunning(screen *ebiten.Image) {
     livesStr := g.gamestate.GetPlayerLivesStr()
-    DrawTextImage(screen, livesStr, 0, GAME_HEIGHT + 20, 1, 0.9)
+    DrawTextImage(screen, livesStr, 0, game_state.GAME_HEIGHT + 20, 1, 0.9)
 
 
     scoreStr := g.gamestate.GetScoreStr()
-    DrawTextImage(screen, scoreStr, 100, GAME_HEIGHT + 20, 1, 0.9)
+    DrawTextImage(screen, scoreStr, 100, game_state.GAME_HEIGHT + 20, 1, 0.9)
 }
 
 func (g *Game)DrawUIOver(screen *ebiten.Image) {
-    DrawTextImage(screen, "Game Over! :(", GAME_WIDTH / 2 - 20, GAME_HEIGHT / 2, 1, 1)
-    DrawTextImage(screen, "To try again reopen the app.", GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 20, 1, 1)
+    DrawTextImage(screen, "Game Over! :(", game_state.GAME_WIDTH / 2 - 20, game_state.GAME_HEIGHT / 2, 1, 1)
+    DrawTextImage(screen, "To try again reopen the app.", game_state.GAME_WIDTH / 2 - 60, game_state.GAME_HEIGHT / 2 + 20, 1, 1)
 }
 
 func (g *Game)DrawUIWin(screen *ebiten.Image) {
     scoreResultStr := g.gamestate.GetScoreResultStr()
-    DrawTextImage(screen, "GG! Thanks for playing", GAME_WIDTH / 2 - 40, GAME_HEIGHT / 2, 1, 1)
-    DrawTextImage(screen, scoreResultStr, GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 20, 1, 1)
-    DrawTextImage(screen, "To try again reopen the app.", GAME_WIDTH / 2 - 60, GAME_HEIGHT / 2 + 40, 1, 1)
+    DrawTextImage(screen, "GG! Thanks for playing", game_state.GAME_WIDTH / 2 - 40, game_state.GAME_HEIGHT / 2, 1, 1)
+    DrawTextImage(screen, scoreResultStr, game_state.GAME_WIDTH / 2 - 60, game_state.GAME_HEIGHT / 2 + 20, 1, 1)
+    DrawTextImage(screen, "To try again reopen the app.", game_state.GAME_WIDTH / 2 - 60, game_state.GAME_HEIGHT / 2 + 40, 1, 1)
 }
 
 func DrawTextImage(screen *ebiten.Image, str string, posX, posY, scaleX, scaleY float64) {

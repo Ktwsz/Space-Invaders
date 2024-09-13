@@ -1,5 +1,5 @@
 linux:
-	GOOS=linux go build -o build/main
+	GOOS=linux go build -C src -o build/main
 
 windows:
-	GOOS=windows go build -o build/main
+	GOOS=windows go build -C src -o build/main

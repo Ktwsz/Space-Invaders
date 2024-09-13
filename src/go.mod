@@ -1,4 +1,4 @@
-module main
+module space_invaders
 
 go 1.22.0
 

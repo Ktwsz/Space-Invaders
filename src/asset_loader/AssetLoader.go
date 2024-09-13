@@ -1,4 +1,4 @@
-package main
+package asset_loader
 
 import (
     "errors"
@@ -6,6 +6,8 @@ import (
     img "image"
     png "image/png"
     "os"
+
+    "space_invaders/utils"
 )
 
 type AssetLoader struct {
@@ -42,35 +44,35 @@ func (assetloader *AssetLoader)LoadSpriteSheet(path string) error {
 
 func (assetloader *AssetLoader)LoadSprite(name string, bounds img.Rectangle, count int) {
     sizeX, sizeY := bounds.Max.X, bounds.Max.Y
-    pos := Vec2[int]{x: bounds.Min.X, y: bounds.Min.Y} 
+    pos := utils.CreateVec(bounds.Min.X, bounds.Min.Y)
 
     images := make([]*ebiten.Image, count)
 
     for i := range count {
-        imageRect := img.Rectangle{Min: img.Point{X: pos.x, Y: pos.y}, Max: img.Point{X: pos.x + sizeX, Y: pos.y + sizeY}}
+        imageRect := img.Rectangle{Min: img.Point{X: pos.X, Y: pos.Y}, Max: img.Point{X: pos.X + sizeX, Y: pos.Y + sizeY}}
         subImage := assetloader.spritesheet.SubImage(imageRect) 
         images[i] = ebiten.NewImageFromImage(subImage)
 
-        pos.x += sizeX + 1
+        pos.X += sizeX + 1
     }
 
     assetloader.assetsSprites[name] = images
 }
 
-func (assetloader *AssetLoader)LoadSpriteWithDeath(name string, bounds img.Rectangle, count int, deathFrameBounds Vec2[int]) {
+func (assetloader *AssetLoader)LoadSpriteWithDeath(name string, bounds img.Rectangle, count int, deathFrameBounds utils.Vec2[int]) {
     assetloader.LoadSprite(name, bounds, count-1)
 
     sizeX := bounds.Max.X
     posX := bounds.Min.X + (count-1) * (sizeX+1)
     posY := bounds.Min.Y
 
-    imageRect := img.Rectangle{Min: img.Point{X: posX, Y: posY}, Max: img.Point{X: posX + deathFrameBounds.x, Y: posY + deathFrameBounds.y}}
+    imageRect := img.Rectangle{Min: img.Point{X: posX, Y: posY}, Max: img.Point{X: posX + deathFrameBounds.X, Y: posY + deathFrameBounds.Y}}
 
     subImage := assetloader.spritesheet.SubImage(imageRect)
     assetloader.assetsSprites[name] = append(assetloader.assetsSprites[name], ebiten.NewImageFromImage(subImage))
 }
 
-func (assetloader *AssetLoader)getSprite(name string, frame int) (*ebiten.Image, error) {
+func (assetloader *AssetLoader)GetSprite(name string, frame int) (*ebiten.Image, error) {
     imgs := assetloader.assetsSprites[name]
     if imgs == nil {
         return nil, errors.New("no sprite found")
@@ -92,6 +94,6 @@ func (assetloader *AssetLoader)LoadSound(path string, name string) error {
     return nil
 }
 
-func (assetloader *AssetLoader)getSound(name string) []byte {
+func (assetloader *AssetLoader)GetSound(name string) []byte {
     return assetloader.assetsSounds[name]
 }

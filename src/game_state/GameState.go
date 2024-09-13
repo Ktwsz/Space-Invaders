@@ -1,4 +1,4 @@
-package main
+package game_state
 
 import (
     "time"
@@ -6,7 +6,17 @@ import (
     "math"
     rand "math/rand"
     "fmt"
+
+    "space_invaders/utils"
+    "space_invaders/entity"
+    entity_hitbox "space_invaders/entity/hitbox"
+    entity_states "space_invaders/entity/states"
+    entity_ids "space_invaders/entity/ids"
+    "space_invaders/game_state/states"
 )
+
+const GAME_WIDTH = 150
+const GAME_HEIGHT = 150
 
 const playerSpeed float64 = 1.0
 const enemyHeight float64 = 8.0
@@ -19,18 +29,18 @@ const wallCount = 4
 const WALL_POS_Y = 102
 
 type GameState struct {
-    bounds Vec2[int]
+    bounds utils.Vec2[int]
 
-    player Player 
+    player entity.Player 
 
-    enemies []*Enemy
+    enemies []*entity.Enemy
     enemyColProjectileCooldown [enemyCountColumn]bool
     deadEnemies []int
     enemySpeed float64
 
-    projectiles []*Projectile
+    projectiles []*entity.Projectile
 
-    walls [wallCount]*Wall
+    walls [wallCount]*entity.Wall
 
     score int
     pauseState int
@@ -42,15 +52,15 @@ type GameState struct {
 }
 
 func (g *GameState)Init() {
-    g.bounds = Vec2[int]{x: GAME_WIDTH, y: GAME_HEIGHT}
-    g.pauseState = GAME_STARTING
+    g.bounds = utils.CreateVec(GAME_WIDTH, GAME_HEIGHT)
+    g.pauseState = states.STARTING
 
     g.enemySpeed = 2.0
 
 }
 
 func (g *GameState)StartGame() {
-    g.pauseState = GAME_RUNNING
+    g.pauseState = states.RUNNING
 
     g.player.Init(g.bounds)
 
@@ -76,7 +86,7 @@ func (g *GameState)StartGame() {
 }
 
 func (g *GameState)GameLoop() {
-    if g.pauseState != GAME_RUNNING {
+    if g.pauseState != states.RUNNING {
         return
     }
 
@@ -90,12 +100,12 @@ func (g *GameState)GameLoop() {
 }
 
 func (g *GameState)IsGameRunning() bool {
-    return g.pauseState == GAME_RUNNING
+    return g.pauseState == states.RUNNING
 }
 
 func (g *GameState)HandleIfWon() {
     if len(g.enemies) == 0 {
-        g.pauseState = GAME_WIN
+        g.pauseState = states.WIN
         g.enemyMoveDone <- true
     }
 }
@@ -109,50 +119,50 @@ func (g *GameState)GetSoundQueue() []string {
 }
 
 func (g *GameState)SpawnWalls() {
-    margin := g.bounds.x / wallCount - WALL_SIZE_X
-    wallPos := Vec2[float64]{x: float64(margin)/2.0, y: WALL_POS_Y}
+    margin := g.bounds.X / wallCount - entity.WALL_SIZE_X
+    wallPos := utils.CreateVec(float64(margin)/2.0, WALL_POS_Y)
     for i := range wallCount {
-        g.walls[i] = &Wall{position: wallPos,
-                           hitbox: Vec2[float64]{x: WALL_SIZE_X, y: WALL_SIZE_Y},
-                           hitboxReceiveMask: HITBOX_PROJECTILE,
-                           hitboxSendMask: HITBOX_WALL,
-                           gamestateIx: i}
+        g.walls[i] = entity.CreateWall(wallPos, i)
 
-        wallPos.x += float64(WALL_SIZE_X + margin)
+        wallPos.X += float64(entity.WALL_SIZE_X + margin)
     }
 }
 
-func (g *GameState)SetWallsBody(body WallBody) {
+func (g GameState)GetWallsBodySet() bool {
+    return g.wallsBodySet
+}
+
+func (g *GameState)SetWallsBody(body entity.WallBody) {
     g.wallsBodySet = true
     for i := range wallCount {
-        g.walls[i].body = body
+        g.walls[i].Body = body
     }
 }
 
-func (g *GameState)GetWalls() [wallCount]*Wall {
+func (g *GameState)GetWalls() [wallCount]*entity.Wall {
     return g.walls
 }
 
-func (g *GameState)GetLastEnemyInCol() [enemyCountColumn]*Enemy {
-    result := [enemyCountColumn]*Enemy{}
+func (g *GameState)GetLastEnemyInCol() [enemyCountColumn]*entity.Enemy {
+    result := [enemyCountColumn]*entity.Enemy{}
     for i, e := range g.enemies {
-        col := e.rowData.x
-        if result[col] == nil || e.rowData.y > result[col].rowData.y {
+        col := e.GetRowData().X
+        if result[col] == nil || e.GetRowData().Y > result[col].GetRowData().Y {
             result[col] = g.enemies[i]
         }
     }
     return result
 }
 
-func (g *GameState)GetChanceToShoot(gaussian *gauss.Gaussian, enemy *Enemy) bool {
-    dist := math.Abs(enemy.position.x - g.player.position.x)
+func (g *GameState)GetChanceToShoot(gaussian *gauss.Gaussian, enemy *entity.Enemy) bool {
+    dist := math.Abs(enemy.GetPosition().X - g.player.GetPosition().X)
     chance := 0.6 * gaussian.Pdf(dist) * math.Sqrt(2 * math.Pi)
     
     return rand.Float64() <= chance
 }
 
-func (g *GameState)CanEnemyShoot(enemy *Enemy, col int) bool {
-    return enemy != nil && enemy.deathState == STATE_ALIVE && !g.enemyColProjectileCooldown[col] 
+func (g *GameState)CanEnemyShoot(enemy *entity.Enemy, col int) bool {
+    return enemy != nil && enemy.DeathState == entity_states.ALIVE && !g.enemyColProjectileCooldown[col] 
 }
 
 func (g *GameState)EnemyShoot() {
@@ -177,33 +187,33 @@ func (g *GameState)EnemyShoot() {
     }
 }
 
-func (g *GameState)SpawnEnemyprojectile(enemy *Enemy, col int) bool {
+func (g *GameState)SpawnEnemyprojectile(enemy *entity.Enemy, col int) bool {
     shotOnCooldown := g.enemyColProjectileCooldown[col]
 
     if shotOnCooldown {
         return false
     }
-    projectile := Projectile{id: enemy.projectileId, 
-                             frameCount: 4,
-                             position: Vec2[float64]{x: enemy.position.x, y: enemy.position.y + enemy.spriteSize.y/2.0},
-                             hitbox: Vec2[float64]{x: 3, y: 7},
-                             spriteSize: Vec2[float64]{x: 3, y: 7},
-                             speed: enemyProjectileSpeed,
-                             hitboxReceiveMask: HITBOX_PROJECTILE | HITBOX_PLAYER | HITBOX_WALL,
-                             hitboxSendMask: HITBOX_PROJECTILE | HITBOX_ENEMY,
-                         }
 
+    projectile := entity.CreateProjectile(
+        enemy.GetProjectileId(),
+        4,
+        utils.CreateVec(enemy.GetPosition().X, enemy.GetPosition().Y + enemy.GetSpriteSize().Y/2.0),
+        utils.CreateVec(3, 7).ToFloat64(),
+        enemyProjectileSpeed,
+        entity_hitbox.PLAYER,
+        entity_hitbox.ENEMY,
+    )
 
     g.projectiles = append(g.projectiles, &projectile)
 
     return true
 }
 
-func (g *GameState)GetObjectsToDraw() []EntityDraw {
+func (g *GameState)GetObjectsToDraw() []utils.EntityDraw {
     enemiesLen := len(g.enemies)
     projectilesLen := len(g.projectiles)
 
-    objects := make([]EntityDraw, projectilesLen + enemiesLen + 1)
+    objects := make([]utils.EntityDraw, projectilesLen + enemiesLen + 1)
 
     objects[0] = &g.player
 
@@ -219,32 +229,32 @@ func (g *GameState)GetObjectsToDraw() []EntityDraw {
 }
 
 func (g *GameState)PlayerMoveLeft() {
-    g.player.position.x -= playerSpeed
-    if g.player.position.x - g.player.spriteSize.x/2.0 < 0 {
-        g.player.position.x = g.player.spriteSize.x/2.0
+    g.player.Position.X -= playerSpeed
+    if g.player.GetPosition().X - g.player.GetSpriteSize().X/2.0 < 0 {
+        g.player.Position.X = g.player.GetSpriteSize().X/2.0
     }
 }
 
 func (g *GameState)PlayerMoveRight() {
-    g.player.position.x += playerSpeed
-    if g.player.position.x + g.player.spriteSize.x/2.0 > float64(g.bounds.x) {
-        g.player.position.x = float64(g.bounds.x) - g.player.spriteSize.x/2.0
+    g.player.Position.X += playerSpeed
+    if g.player.GetPosition().X + g.player.GetSpriteSize().X/2.0 > float64(g.bounds.X) {
+        g.player.Position.X = float64(g.bounds.X) - g.player.GetSpriteSize().X/2.0
     }
 }
 
 func (g *GameState)SpawnEnemiesRow(row int, enemySuffix int, enemyPoints int, count int) {
-    position := Vec2[float64]{x: 6.0, y: (enemyHeight + 6.0) * float64(row) + 6.0}
+    position := utils.CreateVec(6.0, (enemyHeight + 6.0) * float64(row) + 6.0)
 
-    enemiesNew := make([]*Enemy, count)
+    enemiesNew := make([]*entity.Enemy, count)
 
     enemyId := fmt.Sprintf("enemy%d", enemySuffix)
     enemyProjectileId := fmt.Sprintf("enemy_projectile_%d", enemySuffix)
 
     for i := range count {
-        enemiesNew[i] = &Enemy{}
-        enemiesNew[i].Init(enemyId, enemyProjectileId, 3, position, Vec2[int]{x: i, y: row}, enemyPoints)
+        enemiesNew[i] = &entity.Enemy{}
+        enemiesNew[i].Init(enemyId, enemyProjectileId, 3, position, utils.CreateVec(i, row), enemyPoints)
 
-        position.x += 10.0//enemy x + margin
+        position.X += 10.0//enemy x + margin
     }
 
     g.enemies = append(g.enemies, enemiesNew...)
@@ -253,12 +263,12 @@ func (g *GameState)SpawnEnemiesRow(row int, enemySuffix int, enemyPoints int, co
 func (g *GameState)removeDeadEnemies() {
     toRemove := make([]int, 0)
     for i, e := range g.enemies {
-        if e.deathState == STATE_DEATH_END {
+        if e.DeathState == entity_states.DEATH_END {
             toRemove = append(toRemove, i)
         }
     }
 
-    g.enemies = RemoveIndexesMany(g.enemies, toRemove)
+    g.enemies = utils.RemoveIndexesMany(g.enemies, toRemove)
 }
 
 func (g *GameState)SetCooldownTimer(t time.Duration) {
@@ -266,7 +276,7 @@ func (g *GameState)SetCooldownTimer(t time.Duration) {
 
     <-timer.C
 
-    g.player.shotOnCooldown = false
+    g.player.ShotOnCooldown = false
 }
 
 func (g *GameState)SetEnemyCooldownTimer(column int, t time.Duration) {
@@ -279,7 +289,7 @@ func (g *GameState)SetEnemyCooldownTimer(column int, t time.Duration) {
 
 func (g *GameState)PlayerShoot() {
     if ok := g.SpawnPlayerProjectile(); ok {
-        g.player.shotOnCooldown = true
+        g.player.ShotOnCooldown = true
         g.soundQueue = append(g.soundQueue, "player_shoot")
 
         go g.SetCooldownTimer(750)
@@ -287,21 +297,20 @@ func (g *GameState)PlayerShoot() {
 }
 
 func (g *GameState)SpawnPlayerProjectile() bool {
-    shotOnCooldown := g.player.shotOnCooldown
+    shotOnCooldown := g.player.GetShotOnCooldown()
 
     if shotOnCooldown {
         return false
     }
-    projectile := Projectile{id: "player_projectile", 
-                             frameCount: 1,
-                             position: Vec2[float64]{x: g.player.position.x, y: g.player.position.y - g.player.spriteSize.y/2.0},
-                             hitbox: Vec2[float64]{x: 1, y: 6},
-                             spriteSize: Vec2[float64]{x: 1, y: 6},
-                             speed: playerProjectileSpeed,
-                             hitboxReceiveMask: HITBOX_PROJECTILE | HITBOX_ENEMY | HITBOX_WALL,
-                             hitboxSendMask: HITBOX_PROJECTILE | HITBOX_PLAYER,
-                         }
 
+    projectile := entity.CreateProjectile("player_projectile",
+        1,
+        utils.CreateVec(g.player.GetPosition().X, g.player.GetPosition().Y - g.player.GetSpriteSize().Y/2.0),
+        utils.CreateVec(1, 6).ToFloat64(),
+        playerProjectileSpeed,
+        entity_hitbox.ENEMY,
+        entity_hitbox.PLAYER,
+    )
 
     g.projectiles = append(g.projectiles, &projectile)
 
@@ -326,64 +335,64 @@ func (g *GameState)MoveProjectiles() {
 func (g *GameState)RemoveDeadProjectiles() {
     toRemove := make([]int, 0)
     for i, p := range g.projectiles {
-        if p.deathState == STATE_DEATH_END {
+        if p.DeathState == entity_states.DEATH_END {
             toRemove = append(toRemove, i)
         }
     }
 
-    g.projectiles = RemoveIndexesMany(g.projectiles, toRemove)
+    g.projectiles = utils.RemoveIndexesMany(g.projectiles, toRemove)
 }
 
-func (g *GameState)SetEnemyDeathTimer(enemy *Enemy, t time.Duration) {
+func (g *GameState)SetEnemyDeathTimer(enemy *entity.Enemy, t time.Duration) {
     timer := time.NewTimer(t * time.Millisecond)
 
     <-timer.C
 
-    enemy.deathState = STATE_DEATH_END
+    enemy.DeathState = entity_states.DEATH_END
 }
 
-func (g *GameState)SetProjectileDeathTimer(projectile *Projectile, t time.Duration) {
+func (g *GameState)SetProjectileDeathTimer(projectile *entity.Projectile, t time.Duration) {
     timer := time.NewTimer(t * time.Millisecond)
 
     <-timer.C
-    projectile.deathState = STATE_DEATH_END
+    projectile.DeathState = entity_states.DEATH_END
 }
 
 func (g *GameState)EnemiesShiftRow(row int, enemyIx int) {
     var shiftX float64
 
     e := g.enemies[enemyIx]
-    if e.position.x + e.spriteSize.x > float64(g.bounds.x) {
-        shiftX = -(e.position.x + e.spriteSize.x - float64(g.bounds.x))
+    if e.GetPosition().X + e.GetSpriteSize().X > float64(g.bounds.X) {
+        shiftX = -(e.GetPosition().X + e.GetSpriteSize().X - float64(g.bounds.X))
     } else {
-        shiftX = e.spriteSize.x - e.position.x
+        shiftX = e.GetSpriteSize().X - e.GetPosition().X
     }
 
     for i := range g.enemies {
-        if g.enemies[i].rowData.y == row {
-            g.enemies[i].Shift(Vec2[float64]{x: shiftX, y: 0})
+        if g.enemies[i].GetRowData().Y == row {
+            g.enemies[i].Shift(utils.CreateVec(shiftX, 0))
         }
     }
 }
 
 func (g *GameState)EnemiesShiftDown() {
     for _, e := range g.enemies {
-        if e.position.y > 70 {
+        if e.GetPosition().Y > 70 {
             return
         } 
     }
 
     for i := range g.enemies {
-        g.enemies[i].Shift(Vec2[float64]{x: 0, y: enemyHeight + 6.0})        
+        g.enemies[i].Shift(utils.CreateVec(0, enemyHeight + 6.0))
     }
 }
 
 func (g *GameState)CheckEnemiesInBounds() {
     changeEnemiesDirection := false
     for i, e := range g.enemies {
-        if IsOutOfBounds(g.bounds, e) {
+        if utils.IsOutOfBounds(g.bounds, e) {
             changeEnemiesDirection = true
-            g.EnemiesShiftRow(e.rowData.y, i)
+            g.EnemiesShiftRow(e.GetRowData().Y, i)
         } 
     }
 
@@ -395,36 +404,36 @@ func (g *GameState)CheckEnemiesInBounds() {
 
 func (g *GameState)HandleCollisions() {
 
-    tree := QTreeInitFromBounds(g.bounds)
+    tree := utils.QTreeInitFromBounds(g.bounds)
 
-    g.player.handledCollisions = make(map[EntityHit]bool)
-    tree.insert(&g.player)
+    g.player.HandledCollisions = make(map[utils.EntityHit]bool)
+    tree.Insert(&g.player)
 
     for i := range g.enemies {
-        if g.enemies[i].deathState == STATE_ALIVE {
-            g.enemies[i].gamestateIx = i
-            g.enemies[i].handledCollisions = make(map[EntityHit]bool)
-            tree.insert(g.enemies[i])
+        if g.enemies[i].DeathState == entity_states.ALIVE {
+            g.enemies[i].GamestateIx = i
+            g.enemies[i].HandledCollisions = make(map[utils.EntityHit]bool)
+            tree.Insert(g.enemies[i])
         }
     }
 
     for i := range g.projectiles {
-        if g.projectiles[i].deathState == STATE_ALIVE {
-            g.projectiles[i].gamestateIx = i
-            g.projectiles[i].handledCollisions = make(map[EntityHit]bool)
-            tree.insert(g.projectiles[i])
+        if g.projectiles[i].DeathState == entity_states.ALIVE {
+            g.projectiles[i].GamestateIx = i
+            g.projectiles[i].HandledCollisions = make(map[utils.EntityHit]bool)
+            tree.Insert(g.projectiles[i])
         }
     }
 
     for i := range g.walls {
-        g.walls[i].handledCollisions = make(map[EntityHit]bool)
-        tree.insert(g.walls[i])
+        g.walls[i].HandledCollisions = make(map[utils.EntityHit]bool)
+        tree.Insert(g.walls[i])
     }
 
-    collisions := tree.getAllIntersections()
+    collisions := tree.GetAllIntersections()
 
     for i := range collisions {
-        e := collisions[i].entities 
+        e := collisions[i].GetEntities()
         e1, e2 := e[0], e[1]
 
         collision1 := g.SetCollisionHandled(e1, e2)
@@ -433,33 +442,33 @@ func (g *GameState)HandleCollisions() {
             continue
         }
 
-        if e1.getEntityType() == ENTITY_WALL {
-            wall := g.walls[e1.getGamestateIx()]
-            if pos, didHit := wall.getHitPos(e2); didHit {
-                if HitboxReceive(e1, e2) {
+        if e1.GetEntityType() == entity_ids.WALL {
+            wall := g.walls[e1.GetGamestateIx()]
+            if pos, didHit := wall.GetHitPos(e2); didHit {
+                if utils.HitboxReceive(e1, e2) {
                     g.HitWall(e1, e2, pos)
                 }
-                if HitboxReceive(e2, e1) {
+                if utils.HitboxReceive(e2, e1) {
                     g.HitEntity(e2, e1)
                 }
             }
-        } else if e2.getEntityType() == ENTITY_WALL {
-            wall := g.walls[e2.getGamestateIx()]
-            if pos, didHit := wall.getHitPos(e1); didHit {
-                if HitboxReceive(e1, e2) {
+        } else if e2.GetEntityType() == entity_ids.WALL {
+            wall := g.walls[e2.GetGamestateIx()]
+            if pos, didHit := wall.GetHitPos(e1); didHit {
+                if utils.HitboxReceive(e1, e2) {
                     g.HitEntity(e1, e2)
                 }
-                if HitboxReceive(e2, e1) {
+                if utils.HitboxReceive(e2, e1) {
                     g.HitWall(e2, e1, pos)
                 }
             }
         } else {
-            if HitboxCollide(e1, e2) {
-                if HitboxReceive(e2, e1) {
+            if utils.HitboxCollide(e1, e2) {
+                if utils.HitboxReceive(e2, e1) {
                     g.HitEntity(e1, e2)
                 }
 
-                if HitboxReceive(e1, e2) {
+                if utils.HitboxReceive(e1, e2) {
                     g.HitEntity(e2, e1)
                 }
             }
@@ -467,67 +476,67 @@ func (g *GameState)HandleCollisions() {
     }
 }
 
-func (g *GameState)SetCollisionHandled(e1 EntityHit, e2 EntityHit) bool {
+func (g *GameState)SetCollisionHandled(e1 utils.EntityHit, e2 utils.EntityHit) bool {
     if e1.IsCollisionHandled(e2) {
         return false
     }
     
-    eIx := e1.getGamestateIx()
+    eIx := e1.GetGamestateIx()
 
-    switch e1.getEntityType() {
-    case ENTITY_ENEMY:
+    switch e1.GetEntityType() {
+    case entity_ids.ENEMY:
         enemy := g.enemies[eIx]
-        enemy.handledCollisions[e2] = true
-    case ENTITY_PROJECTILE:
+        enemy.HandledCollisions[e2] = true
+    case entity_ids.PROJECTILE:
         projectile := g.projectiles[eIx]
-        projectile.handledCollisions[e2] = true
-    case ENTITY_PLAYER:
-        g.player.handledCollisions[e2] = true
-    case ENTITY_WALL:
+        projectile.HandledCollisions[e2] = true
+    case entity_ids.PLAYER:
+        g.player.HandledCollisions[e2] = true
+    case entity_ids.WALL:
         wall := g.walls[eIx]
-        wall.handledCollisions[e2] = true
+        wall.HandledCollisions[e2] = true
     }
 
     return true
 }
 
-func (g *GameState)HitEntity(e EntityHit, sender EntityHit) {
-    eIx := e.getGamestateIx()
+func (g *GameState)HitEntity(e utils.EntityHit, sender utils.EntityHit) {
+    eIx := e.GetGamestateIx()
 
-    switch e.getEntityType() {
-    case ENTITY_ENEMY:
+    switch e.GetEntityType() {
+    case entity_ids.ENEMY:
         enemy := g.enemies[eIx]
         g.soundQueue = append(g.soundQueue, "enemy_die")
         enemy.StartDying()
-        g.score += g.enemies[eIx].points
+        g.score += g.enemies[eIx].GetPoints()
 
         go g.SetEnemyDeathTimer(enemy, 500)
 
-    case ENTITY_PROJECTILE:
+    case entity_ids.PROJECTILE:
         projectile := g.projectiles[eIx]
         projectile.StartDying()
 
         go g.SetProjectileDeathTimer(projectile, 500)
 
-    case ENTITY_PLAYER:
+    case entity_ids.PLAYER:
         g.player.Hit()
         g.soundQueue = append(g.soundQueue, "player_hit")
-        if g.player.lives <= 0 {
-            g.pauseState = GAME_OVER
+        if g.player.GetLives() <= 0 {
+            g.pauseState = states.OVER
             g.enemyMoveDone <- true
         }
     }
 }
 
-func (g *GameState)HitWall(e EntityHit, sender EntityHit, pos Vec2[int]) {
-    eIx := e.getGamestateIx()
+func (g *GameState)HitWall(e utils.EntityHit, sender utils.EntityHit, pos utils.Vec2[int]) {
+    eIx := e.GetGamestateIx()
 
     wall := g.walls[eIx]
     wall.Hit(pos)
 }
 
 func (g *GameState)GetPlayerLivesStr() string {
-    return fmt.Sprintf("lives %d", g.player.lives)
+    return fmt.Sprintf("lives %d", g.player.GetLives())
 }
 
 func (g *GameState)GetScoreStr() string {
@@ -537,3 +546,8 @@ func (g *GameState)GetScoreStr() string {
 func (g *GameState)GetScoreResultStr() string {
     return fmt.Sprintf("Your score was: %d", g.score)
 }
+
+func (g *GameState)GetPauseState() int {
+    return g.pauseState
+}
+

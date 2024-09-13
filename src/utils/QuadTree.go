@@ -1,4 +1,4 @@
-package main
+package utils
 
 const childrenCount = 4
 const (
@@ -19,9 +19,9 @@ type QTree struct {
 
 func QTreeInitFromBounds(bounds Vec2[int]) QTree {
     T := QTree{}
-    boundsF := Vec2[float64]{x: float64(bounds.x), y: float64(bounds.y)}
+    boundsF := Vec2[int]{X: bounds.X, Y: bounds.Y}.ToFloat64()
     T.center = boundsF.scale(0.5)
-    T.radius = max(boundsF.x, boundsF.y)
+    T.radius = max(boundsF.X, boundsF.Y)
 
     return T
 }
@@ -30,21 +30,21 @@ func (T *QTree)divide() {
     T.isDivided = true
 
     newRadius := T.radius/2
-    x, y := T.center.x, T.center.y
+    x, y := T.center.X, T.center.Y
 
-    T.children[topleft] = &QTree{center: Vec2[float64]{x: x - newRadius, y: y - newRadius}, radius: newRadius}
-    T.children[topright] = &QTree{center: Vec2[float64]{x: x + newRadius, y: y - newRadius}, radius: newRadius}
-    T.children[bottomleft] = &QTree{center: Vec2[float64]{x: x - newRadius, y: y + newRadius}, radius: newRadius}
-    T.children[bottomright] = &QTree{center: Vec2[float64]{x: x + newRadius, y: y + newRadius}, radius: newRadius}
+    T.children[topleft] = &QTree{center: Vec2[float64]{X: x - newRadius, Y: y - newRadius}, radius: newRadius}
+    T.children[topright] = &QTree{center: Vec2[float64]{X: x + newRadius, Y: y - newRadius}, radius: newRadius}
+    T.children[bottomleft] = &QTree{center: Vec2[float64]{X: x - newRadius, Y: y + newRadius}, radius: newRadius}
+    T.children[bottomright] = &QTree{center: Vec2[float64]{X: x + newRadius, Y: y + newRadius}, radius: newRadius}
 
     for _, e := range T.entities {
         for i := range childrenCount {
-            T.children[i].insert(e)
+            T.children[i].Insert(e)
         }
     }
 }
 
-func (T *QTree)insert(entity EntityHit) {
+func (T *QTree)Insert(entity EntityHit) {
     if !T.IsInBounds(entity) {
         return 
     }
@@ -59,11 +59,11 @@ func (T *QTree)insert(entity EntityHit) {
     }
 
     for i := range childrenCount {
-        T.children[i].insert(entity)
+        T.children[i].Insert(entity)
     }
 }
 
-func (T *QTree)getAllIntersections() []*QTree {
+func (T *QTree)GetAllIntersections() []*QTree {
     if !T.isDivided {
         if countEntites(T) > 1 {
             return []*QTree{T}
@@ -74,12 +74,16 @@ func (T *QTree)getAllIntersections() []*QTree {
 
     result := make([]*QTree, 0)
     for i := range childrenCount {
-        if childrenResult := T.children[i].getAllIntersections(); len(childrenResult) > 0 {
+        if childrenResult := T.children[i].GetAllIntersections(); len(childrenResult) > 0 {
             result = append(result, childrenResult...)
         }
     }
 
     return result
+}
+
+func (T *QTree)GetEntities() [maxEntities]EntityHit {
+    return T.entities
 }
 
 func countEntites(T *QTree) int {
@@ -93,13 +97,13 @@ func countEntites(T *QTree) int {
 }
 
 func (T *QTree)IsInBounds(entity EntityHit) bool {
-    ePos := entity.getPosition()
-    eHitbox := entity.getHitbox().scale(0.5)
-    eMin, eMax := ePos.subtract(eHitbox), ePos.add(eHitbox)
+    ePos := entity.GetPosition()
+    eHitbox := entity.GetHitbox().scale(0.5)
+    eMin, eMax := ePos.Subtract(eHitbox), ePos.Add(eHitbox)
 
     TPos := T.center
-    TRad := Vec2[float64]{x: T.radius, y: T.radius}
-    TMin, TMax := TPos.subtract(TRad), TPos.add(TRad)
+    TRad := Vec2[float64]{X: T.radius, Y: T.radius}
+    TMin, TMax := TPos.Subtract(TRad), TPos.Add(TRad)
 
-    return RectIntersects[float64](eMin, eMax, TMin, TMax)
+    return RectIntersects(eMin, eMax, TMin, TMax)
 }
